@@ -1,0 +1,647 @@
+TNC-APP & DIREWOLF - ANALIZA INTEGRACJI
+========================================
+
+Data: 2026-04-16
+Autor: GitHub Copilot
+Cel: Wytyczne integracji TNC-APP z Direwolfem
+
+
+STRESZCZENIE WYKONAWCZE
+=======================
+
+TNC-APP (Python middleware) może pracować z Direwolfem (software TNC) na co najmniej 
+3 sposoby:
+
+1. **KISS Client Mode** - TNC-APP łączy się do Direwolfa (port 8001)
+   Najlepsze dla: Centralnego monitoringu i IGate
+   
+2. **KISS Server Mode** - Direwolf łączy się do TNC-APP (port 8001)
+   Najlepsze dla: Rozproszonego systemu z wieloma TNC-ami
+   
+3. **Hybrid Mode** - Kombinacja obu poprzednich
+   Najlepsze dla: Kompleksowego systemu z redundancją
+
+Obecna architektura TNC-APP jest już przygotowana do obsługi Direwolfa bez zmian.
+
+
+AKTUALNA ARCHITEKTURA TNC-APP
+==============================
+
+Komponenty:
+  ✓ KISS Server (TCP 8001) - obsługuje wielorakie połączenia
+  ✓ APRS-IS Gateway (TCP 14580) - połączenie z internetem
+  ✓ Signal handling - graceful shutdown
+  ✓ PacketProcessorThread - przetwarzanie pakietów
+  ✓ Logging system - monitorowanie
+
+Przepływ danych (bieżący):
+  APRS-IS (Internet) → TNC-APP APRS-IS Gateway → KISSBuilder → 
+  Broadcast to KISS clients
+
+Problem: Brakuje obsługi Direwolfa jako źródła pakietów
+
+
+SCENARIUSZ 1: TNC-APP jako KISS Client dla Direwolfa
+======================================================
+
+Architektura:
+──────────────
+
+[Radio] → [Direwolf TNC] → [KISS Server 8001] → [TNC-APP KISS Client] 
+                                                      ↓
+                                              ┌─────────────────┐
+                                              ├─ IGate (APRS-IS)│
+                                              ├─ KISS Broadcast │
+                                              └─────────────────┘
+
+Przepływ danych:
+────────────────
+
+1. Direwolf odbiera pakiet z radia
+2. Direwolf dekoduje: Radio signal → AX.25 → APRS
+3. Direwolf wysyła KISS frame na port 8001
+4. TNC-APP KISS Client subprocess łączy się do Direwolfa:8001
+5. TNC-APP odbiera KISS frames od Direwolfa
+6. TNC-APP przetwarza pakiety (parse APRS, validate)
+7. TNC-APP retransmituje do:
+   - IGate (APRS-IS internet)
+   - Własnych KISS clients (YAAC, Winlink, etc.)
+   - Monitoring/logging
+
+
+Implementacja (Zmienić w TNC-APP):
+──────────────────────────────────
+
+Plik: servers.py
+
+```python
+class KISSClientToDirectewolf:
+    """
+    KISS Client connecting to Direwolf (server mode)
+    """
+    
+    def __init__(self, direwolf_host='localhost', direwolf_port=8001):
+        self.host = direwolf_host
+        self.port = direwolf_port
+        self.socket = None
+        self.running = False
+        self.thread = None
+        
+    def connect(self):
+        """Connect to Direwolf KISS server"""
+        try:
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.settimeout(2.0)
+            self.socket.connect((self.host, self.port))
+            self.running = True
+            logger.info(f"[KISS-CLIENT] Connected to Direwolf {self.host}:{self.port}")
+            
+            # Start receive thread
+            self.thread = threading.Thread(target=self._receive_loop, daemon=False)
+            self.thread.start()
+        except Exception as e:
+            logger.error(f"[KISS-CLIENT] Connection failed: {e}")
+            
+    def _receive_loop(self):
+        """Receive KISS frames from Direwolf"""
+        buffer = b''
+        FEND = b'\xc0'
+        
+        while self.running:
+            try:
+                data = self.socket.recv(1024)
+                if not data:
+                    break
+                    
+                buffer += data
+                
+                # Process KISS frames
+                while FEND in buffer:
+                    idx = buffer.find(FEND)
+                    next_idx = buffer.find(FEND, idx + 1)
+                    
+                    if next_idx > idx:
+                        frame = buffer[idx+1:next_idx]
+                        buffer = buffer[next_idx:]
+                        self.process_kiss_frame(frame)
+                    else:
+                        break
+                        
+            except socket.timeout:
+                continue
+            except Exception as e:
+                logger.error(f"[KISS-CLIENT] Receive error: {e}")
+                break
+                
+    def process_kiss_frame(self, frame):
+        """Process received KISS frame from Direwolf"""
+        if len(frame) < 2:
+            return
+            
+        cmd = frame[0]
+        
+        if cmd == 0x00:  # Data frame
+            # Unescape frame
+            unescaped = self.unescape_kiss(frame[1:])
+            
+            # Process as AX.25 frame
+            packet_data = {
+                'source': 'direwolf',
+                'kiss_frame': unescaped,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            # Send to packet processor
+            logger.info(f"[KISS-CLIENT] Received frame from Direwolf: {len(unescaped)} bytes")
+            # emit_packet(packet_data)
+            
+    @staticmethod
+    def unescape_kiss(data):
+        """Unescape KISS frame"""
+        result = b''
+        i = 0
+        while i < len(data):
+            if data[i:i+1] == b'\xdb':
+                if i+1 < len(data):
+                    if data[i+1:i+2] == b'\xdc':
+                        result += b'\xc0'
+                        i += 2
+                    elif data[i+1:i+2] == b'\xdd':
+                        result += b'\xdb'
+                        i += 2
+                    else:
+                        result += data[i:i+1]
+                        i += 1
+                else:
+                    result += data[i:i+1]
+                    i += 1
+            else:
+                result += data[i:i+1]
+                i += 1
+        return result
+        
+    def stop(self):
+        """Stop KISS client"""
+        self.running = False
+        if self.socket:
+            try:
+                self.socket.close()
+            except:
+                pass
+        if self.thread:
+            self.thread.join(timeout=2.0)
+```
+
+Plik: main.py (inicjalizacja)
+
+```python
+# Create KISS client to Direwolf
+kiss_client = KISSClientToDirectewolf('localhost', 8001)
+
+# Start after gui is ready
+root.after(500, lambda: kiss_client.connect())
+
+# Add to shutdown sequence
+def on_closing():
+    kiss_client.stop()
+    # ... rest of shutdown
+```
+
+
+Zaletami:
+────────
+  ✓ Direwolf obsługuje radio (hardware)
+  ✓ TNC-APP obsługuje oprogramowanie (IGate, broadcast, processing)
+  ✓ Separation of concerns
+  ✓ Direwolf może pracować niezależnie
+  ✓ Łatwa do testowania każda część
+
+Wady:
+────
+  ✗ Zależność od Direwolfa
+  ✗ Dodatkowy proces
+  ✗ Dodatkowe TCP connection
+  ✗ Latency (network)
+
+
+SCENARIUSZ 2: Direwolf jako KISS Client dla TNC-APP
+====================================================
+
+Architektura:
+──────────────
+
+[Radio] → [Direwolf TNC] → [KISS Client] → [TNC-APP KISS Server 8001]
+                                                   ↓
+                                           ┌─────────────────┐
+                                           ├─ IGate (APRS-IS)│
+                                           ├─ KISS Broadcast │
+                                           └─────────────────┘
+
+Konfiguracja Direwolfa:
+─────────────────────
+
+direwolf.conf:
+
+```
+# Audio input
+ADEVICE USB
+CHANNEL 0
+MYCALL SP5ME-1
+MODEM 1200
+
+# Connect to TNC-APP KISS server instead of being server
+KISSPORT 0              # Disable KISS server mode
+# Add new directive (hypothetical):
+KISS_CLIENT_CONNECT localhost 8001
+
+# Digipeater
+DIGIPEAT 0 0 ^WIDE[3-7]-[1-7]$ ^WIDE[12]-[12]$
+```
+
+**Problem**: Direwolf NIE obsługuje KISS client mode (tylko server mode)!
+
+Direwolf expects applications to connect TO it, not the other way around.
+
+Rozwiązanie: Użyć adaptera pośredniego lub zmodyfikować Direwolfa (kompilacja z zmianami).
+
+Wada tego scenariusza:
+──────────────────────
+  ✗ Wymaga modyfikacji Direwolfa
+  ✗ Wymaga rekomilacji
+  ✗ Brak wsparcia w oficjalnej wersji
+  ✗ Maintenance nightmare
+
+
+SCENARIUSZ 3: BRIDGE Mode (Adapter)
+===================================
+
+Architektura:
+──────────────
+
+[Radio] → [Direwolf TNC] → [KISS Server 8001] ↘
+                                               [KISS Bridge] → [TNC-APP KISS Server 8001]
+                                                              ↙
+                                        [Other APRS Apps]
+
+Adapter (nowy proces):
+──────────────────
+
+```python
+"""
+kiss_bridge.py - Bridges Direwolf KISS output to multiple KISS servers
+"""
+
+class KISSBridge:
+    def __init__(self, source_host='localhost', source_port=8001,
+                 dest_host='localhost', dest_port=8001):
+        self.source = (source_host, source_port)  # Direwolf
+        self.dest = (dest_host, dest_port)        # TNC-APP
+        
+    def run(self):
+        """
+        1. Connect to Direwolf (source)
+        2. Receive KISS frames
+        3. Forward to TNC-APP (dest)
+        4. Also forward to other KISS clients
+        """
+        pass
+```
+
+Zaletami:
+────────
+  ✓ Bez modyfikacji Direwolfa
+  ✓ Bez modyfikacji TNC-APP
+  ✓ Pluggable solution
+  ✓ Można rozszerzyć do wielu TNC-ów
+
+Wady:
+────
+  ✗ Dodatkowy proces
+  ✗ Dodatkowa latency
+  ✗ Kolejna aplikacja do zarządzania
+
+
+SCENARIUSZ 4: Integrated KISS Client (RECOMMENDED)
+===================================================
+
+Architektura:
+──────────────
+
+TNC-APP z wbudowanym KISS client dla Direwolfa
+
+Zmiany w TNC-APP:
+─────────────────
+
+1. Dodaj konfiguracyjne parametry:
+
+```python
+# config.py (nowa sekcja)
+
+DIREWOLF_CONFIG = {
+    'enabled': True,
+    'host': 'localhost',
+    'port': 8001,
+    'auto_connect': True,
+    'reconnect_interval': 5  # seconds
+}
+```
+
+2. Utwórz KISS client w servers.py
+
+3. Integruj z PacketProcessorThread
+
+4. Dodaj monitoring w GUI
+
+
+Przepływ danych (zaproponowany):
+────────────────────────────────
+
+┌────────────────┐
+│  Radio Signal  │
+└────────┬───────┘
+         │
+         ▼
+┌────────────────────────┐
+│  Direwolf TNC          │
+│  • Demod 1200 bps      │
+│  • AX.25 decode        │
+│  • APRS parse          │
+│  • KISS Server 8001    │
+└────────┬───────────────┘
+         │ KISS frames
+         ▼
+┌────────────────────────────────────┐
+│  TNC-APP                           │
+│  ┌──────────────────────────────┐  │
+│  │ KISS Client (→ Direwolf)     │  │
+│  │ • Receive KISS frames        │  │
+│  │ • Parse AX.25               │  │
+│  │ • Extract APRS              │  │
+│  └──────────────────────────────┘  │
+│               ↓                     │
+│  ┌──────────────────────────────┐  │
+│  │ PacketProcessor              │  │
+│  │ • Validate packets           │  │
+│  │ • Log & analyze              │  │
+│  └──────────────────────────────┘  │
+│               ↓                     │
+│  ┌──────────────────────────────┐  │
+│  │ APRS-IS Gateway              │  │
+│  │ • Send to internet           │  │
+│  │ • Receive from internet      │  │
+│  └──────────────────────────────┘  │
+│               ↓                     │
+│  ┌──────────────────────────────┐  │
+│  │ KISS Server                  │  │
+│  │ • Broadcast to YAAC, etc     │  │
+│  └──────────────────────────────┘  │
+└────────────────────────────────────┘
+         │      │      │
+         ▼      ▼      ▼
+   [YAAC]  [Winlink] [Other]
+
+
+NOWY PLIK: kiss_client.py
+==========================
+
+```python
+"""
+KISS Client module - Connects to Direwolf and other KISS servers
+"""
+
+import socket
+import threading
+import logging
+from datetime import datetime
+from typing import Callable, Optional
+
+logger = logging.getLogger(__name__)
+
+class KISSClient:
+    def __init__(self, host: str = 'localhost', port: int = 8001):
+        self.host = host
+        self.port = port
+        self.socket: Optional[socket.socket] = None
+        self.running = False
+        self.thread: Optional[threading.Thread] = None
+        self.on_frame_received: Optional[Callable] = None
+        
+    def set_frame_callback(self, callback: Callable):
+        """Set callback for received KISS frames"""
+        self.on_frame_received = callback
+        
+    def connect(self) -> bool:
+        """Connect to KISS server"""
+        try:
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.settimeout(2.0)
+            self.socket.connect((self.host, self.port))
+            self.running = True
+            
+            logger.info(f"[KISS-CLIENT] Connected to {self.host}:{self.port}")
+            
+            # Start receive thread
+            self.thread = threading.Thread(
+                target=self._receive_loop,
+                name=f"KISSClient-{self.host}:{self.port}",
+                daemon=False
+            )
+            self.thread.start()
+            return True
+            
+        except Exception as e:
+            logger.error(f"[KISS-CLIENT] Connection failed to {self.host}:{self.port}: {e}")
+            return False
+            
+    def _receive_loop(self):
+        """Receive KISS frames"""
+        buffer = b''
+        FEND = 0xC0
+        
+        while self.running and self.socket:
+            try:
+                data = self.socket.recv(1024)
+                if not data:
+                    logger.info("[KISS-CLIENT] Connection closed by server")
+                    break
+                    
+                buffer += data
+                
+                # Process complete KISS frames
+                while FEND in buffer or buffer.startswith(bytes([FEND])):
+                    if not buffer.startswith(bytes([FEND])):
+                        # Skip to next FEND
+                        idx = buffer.find(FEND)
+                        buffer = buffer[idx:]
+                        continue
+                        
+                    # Find frame end
+                    end_idx = buffer.find(FEND, 1)
+                    if end_idx == -1:
+                        break  # Incomplete frame
+                        
+                    # Extract frame
+                    frame = buffer[1:end_idx]
+                    buffer = buffer[end_idx:]
+                    
+                    # Process frame
+                    self._process_kiss_frame(frame)
+                    
+            except socket.timeout:
+                continue
+            except Exception as e:
+                logger.error(f"[KISS-CLIENT] Receive error: {e}")
+                break
+                
+        self.running = False
+        if self.socket:
+            try:
+                self.socket.close()
+            except:
+                pass
+                
+    def _process_kiss_frame(self, frame: bytes):
+        """Process single KISS frame"""
+        if not frame:
+            return
+            
+        cmd = frame[0]
+        
+        if cmd == 0x00:  # Data frame
+            # Unescape
+            unescaped = self._unescape_kiss(frame[1:])
+            
+            # Callback
+            if self.on_frame_received:
+                try:
+                    self.on_frame_received({
+                        'source': f"{self.host}:{self.port}",
+                        'data': unescaped,
+                        'timestamp': datetime.now().isoformat(),
+                        'length': len(unescaped)
+                    })
+                except Exception as e:
+                    logger.error(f"[KISS-CLIENT] Callback error: {e}")
+        else:
+            logger.debug(f"[KISS-CLIENT] Command frame: {cmd:02x}")
+            
+    @staticmethod
+    def _unescape_kiss(data: bytes) -> bytes:
+        """Unescape KISS data"""
+        result = b''
+        i = 0
+        while i < len(data):
+            if data[i] == 0xDB and i + 1 < len(data):
+                if data[i + 1] == 0xDC:
+                    result += bytes([0xC0])
+                    i += 2
+                elif data[i + 1] == 0xDD:
+                    result += bytes([0xDB])
+                    i += 2
+                else:
+                    result += bytes([data[i]])
+                    i += 1
+            else:
+                result += bytes([data[i]])
+                i += 1
+        return result
+        
+    def disconnect(self):
+        """Disconnect from KISS server"""
+        self.running = False
+        if self.socket:
+            try:
+                self.socket.close()
+            except:
+                pass
+        if self.thread:
+            self.thread.join(timeout=2.0)
+        logger.info(f"[KISS-CLIENT] Disconnected from {self.host}:{self.port}")
+        
+    def is_connected(self) -> bool:
+        """Check if connected"""
+        return self.running and self.socket is not None
+```
+
+
+INTEGRACJA W MAIN.PY
+====================
+
+```python
+from kiss_client import KISSClient
+
+# Global
+direwolf_client: Optional[KISSClient] = None
+
+def setup_direwolf_client():
+    global direwolf_client
+    
+    if not config.DIREWOLF_CONFIG['enabled']:
+        return
+        
+    direwolf_client = KISSClient(
+        host=config.DIREWOLF_CONFIG['host'],
+        port=config.DIREWOLF_CONFIG['port']
+    )
+    
+    # Set callback
+    direwolf_client.set_frame_callback(on_direwolf_kiss_frame)
+    
+    # Connect
+    if direwolf_client.connect():
+        logger.info("[DIREWOLF] KISS client initialized")
+    else:
+        logger.warning("[DIREWOLF] Failed to connect to Direwolf")
+        
+def on_direwolf_kiss_frame(frame_data: dict):
+    """Callback when frame received from Direwolf"""
+    logger.debug(f"[DIREWOLF] Frame received: {frame_data['length']} bytes")
+    
+    # Parse AX.25 from KISS frame
+    ax25_data = frame_data['data']
+    
+    # Add to packet processor
+    # packet_processor.process_frame(ax25_data, 'direwolf')
+    
+# In on_closing():
+if direwolf_client:
+    direwolf_client.disconnect()
+```
+
+
+REKOMENDACJE
+=============
+
+1. **Short Term (Tydzień 1-2)**
+   
+   - Implementacja KISSClient w TNC-APP
+   - Test połączenia TNC-APP ↔ Direwolf
+   - Verify KISS frames are received correctly
+   - Unit tests dla KISS parser
+
+2. **Medium Term (Tydzień 3-4)**
+   
+   - Integracja z PacketProcessorThread
+   - Routing pakietów z Direwolfa do:
+     - APRS-IS gateway
+     - KISS broadcast
+     - Monitoring/logging
+   - Integration tests
+
+3. **Long Term (Miesiąc 2+)**
+   
+   - Obsługa wielu Direwolfów
+   - Failover / redundancy
+   - Performance optimization
+   - Production deployment
+
+
+NEXT STEPS
+===========
+
+1. Zbadaj dokładny format KISS protocol
+2. Zbadaj format AX.25 frames
+3. Zbadaj APRS payload formaty
+4. Zaimplementuj KISSClient
+5. Test z Direwolfem
+6. Dokumentuj konfigurację
