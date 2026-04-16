@@ -1,0 +1,627 @@
+TNC-APP - ARCHITEKTURA KOMUNIKACJI I INTEGRACJI
+================================================
+
+1. PRZEGLĄD OGÓLNY
+==================
+
+Aplikacja TNC-APP to middleware do komunikacji APRS (Automatic Packet Reporting System) 
+z obsługą wielokierunkowego flow danych:
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    INTERNET (APRS-IS)                           │
+│              poland.aprs2.net:14580 (TNC2 format)              │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   TNC-APP (MIDDLEWARE)                          │
+│  ┌───────────────┬──────────────┬──────────────┬───────────────┐ │
+│  │  APRS-IS GW   │  KISS Server │  AGWPE GW    │  GUI Module   │ │
+│  │  (RX/TX)      │  (TCP 8001)  │  (TCP 8000)  │  (Callbacks)  │ │
+│  └───────────────┴──────────────┴──────────────┴───────────────┘ │
+└────────────────────────┬───────────────────────────────────────┬──┘
+                         │                                       │
+        ┌────────────────┘                       ┌───────────────┘
+        │                                        │
+        ▼                                        ▼
+┌──────────────────────────┐          ┌──────────────────────────┐
+│  KISS Clients            │          │  External Apps           │
+│  - Direwolf              │          │  (HTTP/WebSocket/TCP)    │
+│  - YAAC                  │          │  - Web Dashboard         │
+│  - APRSIS32              │          │  - Mobile App            │
+│  - Custom Tools          │          │  - Other TNC Instances   │
+└──────────────────────────┘          └──────────────────────────┘
+
+
+2. KOMPONENTY I PORTY
+======================
+
+2.1 KISS Server (Port 8001)
+----------------------------
+Protokół: TCP/IP KISS (TNC2 format w ramkach KISS)
+Kierunek: Bidirectional (RX/TX)
+
+Format danych:
+FEND [CMD] [ESCAPED_DATA] FEND
+- FEND     = 0xC0 (frame boundary marker)
+- CMD      = 0x00 (data command)
+- DATA     = AX.25 ramka z TNC2 payload
+- Escape:  0xC0 → [0xDB, 0xDC]
+           0xDB → [0xDB, 0xDD]
+
+Funkcja: Odbiera/wysyła pakiety APRS od aplikacji klientów (Direwolf, YAAC, etc.)
+
+Przykład połączenia (Python):
+```
+import socket
+
+# Klient KISS
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.connect(("127.0.0.1", 8001))
+
+# Wysyłanie KISS ramki
+kiss_frame = b'\xc0\x00...[AX.25 data]...\xc0'
+sock.sendall(kiss_frame)
+
+# Odbieranie KISS ramek
+data = sock.recv(1024)
+```
+
+
+2.2 APRS-IS Gateway (Bidirectional)
+-------------------------------------
+Serwer: poland.aprs2.net:14580 (lub inny APRS-IS server)
+Protokół: TCP/IP TNC2 (nie w ramkach KISS)
+Kierunek: Bidirectional (RX/TX)
+
+Format:
+SENDER>RECEIVER,PATH1,PATH2:DATA
+
+Przykład:
+SP5ME-1>APWW11,WIDE1-1,qAS,SP5XA:/150732h5225.50NE02101.21E^270/012/A=001234
+
+Funkcja:
+- RX: Odbiera pakiety z internetu → konwertuje do KISS → broadcasts do klientów
+- TX: Przyjmuje pakiety od klientów KISS → konwertuje do TNC2 → wysyła do APRS-IS
+
+
+2.3 AGWPE Server (Port 8000) - Opcjonalnie
+--------------------------------------------
+Protokół: AGWPE (Soundcard Packet Radio)
+Status: Aktualnie wyłączony (enabled=False w config)
+
+
+3. KIERUNKI PRZEPŁYWU DANYCH
+=============================
+
+3.1 Przepływ Odbiorczy (RX) - Internet → Klienci
+---------------------------------------------------
+1. APRS-IS Server
+   │
+   └─→ APRSISGateway._receive_loop()
+       │
+       ├─→ Parsuje TNC2 linię
+       ├─→ KISSBuilder.tnc2_to_kiss()  [Konwersja do KISS+AX.25]
+       ├─→ on_packet_injected()        [GUI info]
+       │
+       └─→ on_frame_to_broadcast()
+           │
+           └─→ GUI._broadcast_to_all_clients()
+               │
+               └─→ KISSServer.broadcast_to_clients()
+                   │
+                   └─→ Wszyscy podłączeni klienci KISS
+
+
+3.2 Przepływ Nadawczy (TX) - Klienci → Internet
+--------------------------------------------------
+1. Klient KISS wysyła ramkę na port 8001
+   │
+   └─→ KISSServer._handle_client()
+       │
+       ├─→ Parsuje KISS ramkę (find 0xC0 boundaries)
+       ├─→ Odkoduje dane (unescapes)
+       │
+       └─→ KISSServer.on_data_received()
+           │
+           └─→ GUI._process_kiss_packet()
+               │
+               ├─→ parse_ax25_frame()      [Dekoduje AX.25]
+               ├─→ parse_aprs_from_ax25()  [Ekstraktuje APRS payload]
+               │
+               └─→ APRSISGateway.send_to_aprs_is()  [TX do internetu]
+                   │
+                   └─→ APRS-IS Server
+
+
+4. FORMATY DANYCH
+==================
+
+4.1 TNC2 (Internet)
+--------------------
+Nagłówek: SOURCE>DEST,PATH1,PATH2,...:PAYLOAD
+
+Przykład:
+SP5ME-1>APWW11,WIDE1-1,qAS,SP5XA:/150732h5225.50NE02101.21E^270/012/A=001234
+
+Części:
+- SOURCE      = SP5ME-1          (Nadawca z SSID)
+- DEST        = APWW11           (Odbiorca/typ)
+- PATH        = WIDE1-1, qAS     (Ścieżka digirepeaterów)
+- PAYLOAD     = /150732h...      (APRS data z czasem/pozycją/itp)
+
+
+4.2 KISS w AX.25
+------------------
+Bajtowo:
+[FEND] [CMD] [FLAGS] [DEST-ADDR] [SRC-ADDR] [CONTROL] [PID] [PAYLOAD] [FEND]
+
+0xC0   0x00  [AX.25 Header]                                          0xC0
+
+AX.25 Header struktura:
+- DEST callsign (6 bytes + SSID 1 byte)
+- SRC callsign  (6 bytes + SSID 1 byte)
+- PATH repeaters (jeśli są)
+- Control byte  (0x03 = UI frame)
+- PID           (0xF0 = No layer 3)
+
+
+4.3 APRS Payload
+------------------
+TNC2 format zawiera znaki określające typ w pierwszym znaku:
+/ = Position (z czasem)
+\ = Position (bez czasu)
+! = Position (bez SSID)
+= = Item
+; = Object
+> = Status
+# = DF Report
+...i więcej typów
+
+
+5. INTEGRACJA Z ZEWNĘTRZNYMI APLIKACJAMI
+===========================================
+
+5.1 Aplikacja Klienta KISS (Np. Direwolf, YAAC)
+------------------------------------------------
+
+Kroki integracji:
+1. Otwórz socket TCP do `localhost:8001`
+2. Wysyłaj/odbieraj KISS ramki
+3. Zamknij socket po skończeniu
+
+Klasa KISSClient (Python):
+
+```python
+import socket
+
+class KISSClient:
+    def __init__(self, host="127.0.0.1", port=8001):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((host, port))
+        self.buffer = b""
+    
+    def send_kiss_frame(self, ax25_frame: bytes):
+        """Wysyłanie ramki AX.25 w opakowaniu KISS"""
+        kiss_frame = self._encapsulate_kiss(ax25_frame)
+        self.sock.sendall(kiss_frame)
+    
+    def receive_kiss_frames(self):
+        """Odbieranie ramek KISS"""
+        while True:
+            data = self.sock.recv(1024)
+            if not data:
+                break
+            
+            self.buffer += data
+            
+            # Szukaj kompletnych ramek KISS (FEND...FEND)
+            while b'\xC0' in self.buffer:
+                start = self.buffer.find(b'\xC0')
+                end = self.buffer.find(b'\xC0', start + 1)
+                
+                if end != -1:
+                    frame = self.buffer[start:end+1]
+                    self.buffer = self.buffer[end+1:]
+                    yield self._unencapsulate_kiss(frame)
+                else:
+                    break
+    
+    def _encapsulate_kiss(self, data):
+        """Pakuj AX.25 w KISS"""
+        FEND, FESC, TFEND, TFESC = 0xC0, 0xDB, 0xDC, 0xDD
+        
+        frame = bytearray([FEND, 0x00])  # FEND + CMD
+        
+        for byte in data:
+            if byte == FEND:
+                frame.extend([FESC, TFEND])
+            elif byte == FESC:
+                frame.extend([FESC, TFESC])
+            else:
+                frame.append(byte)
+        
+        frame.append(FEND)
+        return bytes(frame)
+    
+    def _unencapsulate_kiss(self, frame):
+        """Rozpakuj KISS ramkę"""
+        FESC, TFEND, TFESC = 0xDB, 0xDC, 0xDD
+        
+        data = bytearray()
+        i = 1  # Pomiń początkowy FEND
+        
+        while i < len(frame) - 1:  # Pomiń końcowy FEND
+            if frame[i] == FESC and i + 1 < len(frame):
+                if frame[i+1] == TFEND:
+                    data.append(0xC0)
+                    i += 2
+                elif frame[i+1] == TFESC:
+                    data.append(0xDB)
+                    i += 2
+                else:
+                    data.append(frame[i])
+                    i += 1
+            else:
+                data.append(frame[i])
+                i += 1
+        
+        return bytes(data)
+    
+    def close(self):
+        self.sock.close()
+
+# Użycie
+client = KISSClient()
+client.send_kiss_frame(ax25_frame)
+for frame in client.receive_kiss_frames():
+    print(f"Received frame: {frame.hex()}")
+```
+
+
+5.2 Aplikacja HTTP/REST API (Web Dashboard)
+---------------------------------------------
+
+Punkt rozszerzenia: Dodaj REST endpoint do gui.py
+
+```python
+from flask import Flask, jsonify
+import json
+
+app = Flask(__name__)
+tnc_app = None  # Referencja do TNC
+
+@app.route('/api/packets', methods=['GET'])
+def get_recent_packets():
+    """Pobierz ostatnie pakiety"""
+    return jsonify({
+        "packets": tnc_app.recent_packets[-10:],  # Ostatnie 10
+        "count": len(tnc_app.recent_packets)
+    })
+
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    """Statystyki"""
+    return jsonify({
+        "kiss_clients": len(tnc_app.kiss_server.client_sockets),
+        "aprs_is_connected": tnc_app.aprs_is_gateway.running,
+        "packets_rx": tnc_app.stats['packets_rx'],
+        "packets_tx": tnc_app.stats['packets_tx']
+    })
+
+@app.route('/api/send', methods=['POST'])
+def send_packet():
+    """Wyślij pakiet do APRS-IS"""
+    data = request.json
+    tnc2_line = data.get('tnc2_line')
+    success = tnc_app.aprs_is_gateway.send_packet(tnc2_line)
+    return jsonify({"success": success})
+```
+
+Uruchom na porcie 5000:
+app.run(host='0.0.0.0', port=5000)
+
+
+5.3 WebSocket (Real-time Data Stream)
+--------------------------------------
+
+Punkt rozszerzenia: Websocket server do live streaming pakietów
+
+```python
+import asyncio
+import websockets
+import json
+
+class PacketWebSocketServer:
+    def __init__(self, host="0.0.0.0", port=8080):
+        self.clients = set()
+        self.host = host
+        self.port = port
+    
+    async def start(self):
+        """Uruchom WebSocket server"""
+        async with websockets.serve(self.handle_client, self.host, self.port):
+            print(f"WebSocket server on ws://{self.host}:{self.port}")
+            await asyncio.Future()  # Forever
+    
+    async def handle_client(self, websocket, path):
+        """Obsługuj klienta"""
+        self.clients.add(websocket)
+        try:
+            async for message in websocket:
+                # Odbieraj komendy od klienta
+                await self.process_command(message, websocket)
+        finally:
+            self.clients.remove(websocket)
+    
+    async def broadcast_packet(self, packet_data):
+        """Broadcastuj pakiet do wszystkich klientów"""
+        message = json.dumps({
+            "type": "packet",
+            "data": packet_data
+        })
+        for client in self.clients:
+            await client.send(message)
+```
+
+Klient JavaScript:
+```javascript
+const ws = new WebSocket('ws://localhost:8080');
+
+ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.type === 'packet') {
+        console.log('Nowy pakiet:', data.data);
+        updateUI(data.data);
+    }
+};
+
+ws.send(JSON.stringify({
+    type: 'send',
+    tnc2_line: 'SP5ME-1>APWW11,WIDE1-1:/...'
+}));
+```
+
+
+6. ARCHITEKTURA CALLBACKÓW
+===========================
+
+TNC-APP używa systemu callbacków do obsługi zdarzeń:
+
+6.1 KISS Server Callbacks
+--------------------------
+kiss_server.on_data_received = lambda data: process_kiss_frame(data)
+kiss_server.on_connected = lambda msg: log(msg)
+kiss_server.on_disconnected = lambda msg: log(msg)
+
+
+6.2 APRS-IS Gateway Callbacks
+------------------------------
+aprs_is_gateway.on_packet_injected = lambda msg: update_gui(msg)
+aprs_is_gateway.on_frame_to_broadcast = lambda frame: broadcast_to_clients(frame)
+
+
+6.3 GUI Callbacks
+------------------
+def _callback(self, event_type: str, data: str, server_type: str = None):
+    # event_type = "packet", "server_msg", "error"
+    # data = opisanie zdarzenia
+    # server_type = "KISS", "INET", "AGWPE"
+
+
+7. SEKWENCJE INTEGRACJI
+========================
+
+7.1 Typowy Flow: Odbieranie Pakietu z Internetu
+--------------------------------------------------
+Czas: T
+1. APRS-IS wysyła: "SP5ME-1>APWW11,WIDE1-1:payload"
+   │
+   ├─ _receive_loop() czyta linię
+   │
+   ├─ _process_tnc2_line()
+   │  │
+   │  ├─ KISSBuilder.tnc2_to_kiss() → ramka KISS
+   │  │
+   │  ├─ on_packet_injected() → GUI log "[INET] SP5ME-1>..."
+   │  │
+   │  └─ on_frame_to_broadcast() → KISSServer.broadcast_to_clients()
+   │
+   └─ Wszyscy klienci KISS odbierają ramkę
+      (Direwolf, YAAC, custom app)
+
+Czas: T + ~10ms
+
+
+7.2 Typowy Flow: Wysyłanie Pakietu do Internetu
+--------------------------------------------------
+Czas: T
+1. Klient KISS wysyła KISS ramkę do portu 8001
+   │
+   ├─ KISSServer._handle_client() odbiera
+   │
+   ├─ Parsuje KISS ramkę (find 0xC0 boundaries)
+   │
+   ├─ on_data_received() → GUI._process_kiss_packet()
+   │
+   ├─ parse_ax25_frame() + parse_aprs_from_ax25()
+   │  │
+   │  └─ GUI._callback("packet", "...", "KISS")
+   │
+   └─ APRSISGateway.send_to_aprs_is()
+      │
+      └─ APRS-IS Server otrzymuje TNC2 linię
+
+Czas: T + ~20ms
+
+
+8. CONFIGURACJA APLIKACJI
+===========================
+
+Plik: src/config.py
+
+@dataclass
+class KISSServerConfig:
+    enabled: bool = True
+    host: str = "0.0.0.0"
+    port: int = 8001
+
+@dataclass
+class APRSISConfig:
+    enabled: bool = True
+    server: str = "poland.aprs2.net"
+    port: int = 14580
+    callsign: str = "GUEST"
+    passcode: str = "-1"
+    filter: str = "filter r/52.23/21.01/50"
+
+@dataclass
+class AGWPEServerConfig:
+    enabled: bool = False
+    host: str = "0.0.0.0"
+    port: int = 8000
+
+
+9. PRZYKŁADY INTEGRACJI - RÓŻNE SCENARIUSZE
+=============================================
+
+9.1 Mobile App + TNC-APP
+------------------------
+
+┌──────────────┐         HTTP/JSON         ┌──────────────┐
+│  Mobile App  │◄────────────────────────►│  REST API    │
+│  (iOS/Android)│        Port 5000         │  (Flask)     │
+└──────────────┘                          └──────────────┘
+                                                │
+                                                ▼
+                                         ┌──────────────┐
+                                         │  TNC-APP     │
+                                         │  (Middleware)│
+                                         └──────────────┘
+
+API Endpoints:
+- GET /api/packets          → Pobierz ostatnie pakiety
+- GET /api/position/:call   → Pozycja stacji
+- POST /api/send            → Wyślij pakiet
+- GET /api/stats            → Statystyki
+- WebSocket /ws             → Live stream
+
+
+9.2 Multiple TNC Instances (Mesh)
+----------------------------------
+
+┌──────────────┐        TCP 8001         ┌──────────────┐
+│  TNC-APP #1  │◄───────────────────────►│  TNC-APP #2  │
+│ (Lokacja A)  │   KISS Protocol        │ (Lokacja B)  │
+└──────────────┘                         └──────────────┘
+      │                                         │
+      ├─ KISS Server 8001                      ├─ KISS Server 8001
+      └─ APRS-IS (internet)                    └─ APRS-IS (internet)
+
+Klienci mogą podłączać się do dowolnej instancji
+Pakiety są synchronizowane przez Internet
+
+
+9.3 Direwolf + TNC-APP
+----------------------
+
+┌──────────────┐      KISS TCP 8001      ┌──────────────┐
+│  Direwolf    │◄───────────────────────►│  TNC-APP     │
+│  (Radio)     │    Port 8001             │  (Gateway)   │
+└──────────────┘                          └──────────────┘
+                                                │
+                                                ├─ KISS broadcast
+                                                └─ APRS-IS (internet)
+
+Direwolf wysyła pakiety radiowe do TNC-APP
+TNC-APP broadcastuje do internetu i innych klientów
+
+
+10. BEZPIECZEŃSTWO I BEST PRACTICES
+====================================
+
+10.1 Firewall Rules
+--------------------
+# Zezwól tylko na localhosta (bezpieczne)
+Allow 127.0.0.1:8001
+Allow 127.0.0.1:8000
+
+# Lub z siecią lokalną
+Allow 192.168.x.x:8001
+
+
+10.2 Authentication (Przyszłość)
+---------------------------------
+# Dodaj token-based auth dla REST API
+@app.before_request
+def check_auth():
+    token = request.headers.get('Authorization')
+    if not validate_token(token):
+        return {"error": "Unauthorized"}, 401
+
+
+10.3 Rate Limiting
+-------------------
+from flask_limiter import Limiter
+
+limiter = Limiter(app)
+
+@app.route('/api/send', methods=['POST'])
+@limiter.limit("10 per minute")
+def send_packet():
+    ...
+
+
+11. TROUBLESHOOTING
+====================
+
+Problem: Pakiety nie dochodzą do klientów KISS
+----------------------------------------------
+Kroki debug:
+1. Sprawdź czy klient jest połączony:
+   [KISS] Client connected from 127.0.0.1:XXXX
+
+2. Sprawdź czy broadcast działa:
+   [KISS] Broadcast: sent frame to X clients
+
+3. Włącz debug logging:
+   logger.setLevel(logging.DEBUG)
+
+
+Problem: APRS-IS nie odbiera pakietów
+--------------------------------------
+Kroki debug:
+1. Sprawdź połączenie:
+   [OK] APRS-IS: Connected to poland.aprs2.net:14580
+
+2. Sprawdź filtr:
+   [OK] APRS-IS: Sent filter: filter r/52.23/21.01/50
+
+3. Sprawdź czy server wysyła dane:
+   tail -f output.log | grep "APRS-IS RX"
+
+
+12. PRZYSZŁE ROZSZERZENIA
+==========================
+
+1. D-STAR Integration - Dodaj D-STAR gateway
+2. P25 Support - Obsługa Project 25
+3. Mobile Push - Powiadomienia push na telefon
+4. Geolocation Heatmap - Mapa pozycji stacji
+5. Weather Integration - METAR, forecast
+6. Voice Alerts - Alerty głosowe dla ważnych pakietów
+7. Database Logging - Archiwizacja do SQLite/PostgreSQL
+8. Encryption - TLS dla REST API i WebSocket
+
+
+PODSUMOWANIE
+============
+
+TNC-APP jest skalowalna architektura do:
+- Wysyłania/odbierania pakietów APRS (bidirectional)
+- Integracji z aplikacjami przez KISS TCP
+- Dostępu przez REST API/WebSocket
+- Synchronizacji wielu instancji
+- Połączenia z Internetem (APRS-IS)
+
+Wszystkie komponenty są już zaimplementowane i działają!

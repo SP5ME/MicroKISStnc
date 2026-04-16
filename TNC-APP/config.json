@@ -1,0 +1,30 @@
+{
+  "servers": {
+    "kiss": {
+      "enabled": true,
+      "host": "0.0.0.0",
+      "port": 8001
+    },
+    "agwpe": {
+      "enabled": false,
+      "host": "0.0.0.0",
+      "port": 8000
+    }
+  },
+  "gui": {
+    "window_title": "TNC Application - Development Mode",
+    "window_width": 1200,
+    "window_height": 700
+  },
+  "debug": {
+    "aprs_is_gateway": {
+      "enabled": false,
+      "server": "poland.aprs2.net",
+      "port": 14580,
+      "callsign": "GUEST",
+      "passcode": "-1",
+      "filter": "filter r/52.23/21.01/50",
+      "comment": "Filter: center Warsaw (52.23,21.01), radius 50km"
+    }
+  }
+}
