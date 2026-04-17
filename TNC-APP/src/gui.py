@@ -10,7 +10,7 @@ from datetime import datetime
 from queue import Queue, Empty
 
 from .config import AppConfig
-from .servers import KISSServer, AGWPEServer
+from .servers import KISSServer
 from .parser import KISSFrame, parse_ax25_frame, parse_aprs_from_ax25
 
 
@@ -26,8 +26,6 @@ class PacketProcessorThread(threading.Thread):
         self.gui_callback = gui_callback
         self.event_queue = event_queue  # Thread-safe queue
         self.kiss_server: KISSServer = None
-        self.agwpe_server: AGWPEServer = None
-        self.aprs_is_gateway = None
         self.running = True
 
     def run(self):
@@ -42,17 +40,6 @@ class PacketProcessorThread(threading.Thread):
             self.kiss_server.on_connected = lambda msg: self._callback("server_msg", f"[KISS] {msg}")
             self.kiss_server.on_disconnected = lambda msg: self._callback("server_msg", f"[KISS] {msg}")
             self.kiss_server.start()
-
-        # AGWPE Server
-        if self.config.agwpe_server.enabled:
-            self.agwpe_server = AGWPEServer(
-                self.config.agwpe_server.host,
-                self.config.agwpe_server.port
-            )
-            self.agwpe_server.on_data_received = self._process_agwpe_packet
-            self.agwpe_server.on_connected = lambda msg: self._callback("server_msg", f"[AGWPE] {msg}")
-            self.agwpe_server.on_disconnected = lambda msg: self._callback("server_msg", f"[AGWPE] {msg}")
-            self.agwpe_server.start()
 
         # Keep thread alive
         while self.running:
@@ -153,33 +140,6 @@ class PacketProcessorThread(threading.Thread):
             logger.error(f"Error processing KISS packet: {e}")
             self._callback("packet", f"[KISS ERROR] {str(e)}", "KISS")
 
-    def _process_agwpe_packet(self, data: bytes):
-        """Przetwórz pakiet AGWPE"""
-        try:
-            from .parser import AGWPEFrame, parse_aprs_from_agwpe_data
-            
-            frame = AGWPEFrame.parse(data)
-            if not frame:
-                return
-
-            # Tylko procesy data frames (command 'D' lub 'd' lub 'U')
-            if frame.datakind in ['D', 'd', 'U'] and frame.data:
-                aprs_packet = parse_aprs_from_agwpe_data(frame.data)
-                if aprs_packet:
-                    output = f"[AGWPE] {aprs_packet.to_readable()}"
-                    self._callback("packet", output, "AGWPE")
-                else:
-                    output = f"[AGWPE] Data from {frame.call_from} to {frame.call_to} (len={len(frame.data)})"
-                    self._callback("packet", output, "AGWPE")
-            else:
-                # Inne ramki (control frames)
-                output = f"[AGWPE] Command '{frame.datakind}' from {frame.call_from} to {frame.call_to}"
-                self._callback("packet", output, "AGWPE")
-                
-        except Exception as e:
-            logger.error(f"Error processing AGWPE packet: {e}")
-            self._callback("packet", f"[AGWPE ERROR] {str(e)}", "AGWPE")
-
     def stop_servers(self):
         """Zatrzymaj serwery - graceful shutdown"""
         logger.info("[SERVERS] Stopping servers...")
@@ -194,15 +154,6 @@ class PacketProcessorThread(threading.Thread):
                     logger.info("[OK] KISS Server stopped")
                 except Exception as e:
                     logger.error(f"[ERROR] Error stopping KISS Server: {e}")
-            
-            # Zatrzymaj AGWPE Server
-            if self.agwpe_server:
-                logger.info("[SERVERS] Stopping AGWPE Server...")
-                try:
-                    self.agwpe_server.stop()
-                    logger.info("[OK] AGWPE Server stopped")
-                except Exception as e:
-                    logger.error(f"[ERROR] Error stopping AGWPE Server: {e}")
             
             # Zatrzymaj APRS-IS Gateway
             if self.aprs_is_gateway:

@@ -1,6 +1,16 @@
-# TNC-APP TODO & PROGRESS
+# MicroKISStnc TODO & PROGRESS
 
-## ✅ COMPLETED - SESSION 1
+## 📋 PROJECT STATUS
+
+### Overview
+- **Application Name**: MicroKISStnc
+- **Protocol**: KISS only (NO AGW)
+- **Architecture**: Maksymalnie simplistic - audio I/O, user picks devices
+- **Phase**: Development (dev version)
+
+---
+
+## ✅ COMPLETED - KISS CORE
 
 ### TX Pipeline (100% WORKING)
 - [x] HDLC encoder (NRZI + bit stuffing + CRC-16-CCITT)
@@ -20,14 +30,18 @@
 - [x] Amplitude increased to 0.9 for audibility
 - [x] Audio saved to WAV files for debugging (tx_debug/ folder)
 
-### Current Session Status
-- **Last Action**: Increased AFSK amplitude to 0.9, added WAV debug output
-- **User Feedback**: "dźwięk się pojawia w momencie nadawania... ale to na pewno nie APRS"
-- **Diagnosis**: Audio transmits but frequencies/modulation may not be correct APRS Bell 202
+### Code Cleanup - SESSION CURRENT
+- [x] Remove AGWPEServer from servers.py
+- [x] Remove AGW references from config.py
+- [x] Remove AGW from gui.py
+- [x] Remove AGW from main.py
+- [x] Update config.json (KISS only)
+- [x] Update README.md (KISS + Audio focus)
+- [x] Update TODO.md
 
 ---
 
-## 🔄 IN PROGRESS - NEEDS VERIFICATION
+## 🔄 IN PROGRESS - TX VERIFICATION
 
 ### Audio Analysis Required
 - [ ] Check WAV files in tx_debug/ folder with audio analyzer
@@ -37,33 +51,14 @@
   - Verify NRZI encoding correctness
   
 ### Potential Issues to Debug
-- [ ] AFSK modulatora - czy częstotliwości są dokładne?
+- [ ] AFSK modulator - czy częstotliwości są dokładne?
 - [ ] HDLC bit stuffing - czy działa prawidłowo?
 - [ ] NRZI encoding - czy stany przejść są poprawne?
 - [ ] Timing between bits - czy samples_per_bit jest dokładnie 36.75 (44100/1200)?
 
-### To Verify Next Session
-1. **Run TX test and check WAV output**
-   ```bash
-   cd h:\MicroTNC\TNC-APP
-   python src/gui_audio.py
-   # Or: python tnc_headless.py
-   # Send KISS frame via telnet :8001
-   # Check tx_debug/*.wav files
-   ```
-
-2. **Analyze audio with tool** (Audacity, Python scipy, or online FFT analyzer)
-   - Look for clear 1200 Hz and 2200 Hz tones
-   - Check bit timing alignment
-   - Verify no bit stuffing errors
-
-3. **Compare with reference APRS audio**
-   - Get known-good APRS WAV file
-   - Compare with our output
-
 ---
 
-## ❌ NOT STARTED - RX PATH
+## ❌ NOT STARTED - PHASE 2 (RX Path)
 
 ### RX Pipeline (0% - deferred)
 - [ ] Audio input via PyAudio
@@ -73,7 +68,7 @@
 - [ ] HDLC bit destuffing
 - [ ] CRC verification
 - [ ] KISS frame formatting
-- [ ] Frame output to network/GUI
+- [ ] Frame output to KISS clients
 
 ### RX Components Needed
 - [ ] AFSKDemodulator class
@@ -83,21 +78,46 @@
 
 ---
 
-## 🎯 NOT STARTED - ADDITIONAL FEATURES
+## 🎯 NOT STARTED - PHASE 3 (UI & FEATURES)
 
-### GUI Enhancement
-- [ ] Real-time signal monitor (waveform display)
-- [ ] Frequency analyzer (FFT display)
+### User Interface
+- [ ] Audio device selection UI (microphone dropdown)
+- [ ] Audio device selection UI (speaker dropdown)
 - [ ] TX test button
-- [ ] RX monitor with frame display
-- [ ] Settings persistence
+- [ ] RX monitor with live frame display
+- [ ] Settings persistence (JSON)
+
+### Audio Management (Windows)
+- [ ] Instructions for Windows Volume Mixer
+- [ ] Audio level documentation (user adjusts via Windows, not app)
+- [ ] CABLE Audio setup guide
 
 ### PTT Control
 - [ ] GPIO/serial PTT implementation
 - [ ] VOX (Voice Operated Transmit) option
 - [ ] TX timeout protection
 
-### Network Features
+### Diagnostics
+- [ ] Real-time signal monitor (waveform display)
+- [ ] Frequency analyzer (FFT display)
+- [ ] Audio level indicator (showing device levels)
+- [ ] Statistics (packets TX/RX, errors, etc.)
+
+---
+
+## 📌 NOTES
+
+### Design Principles
+- **Keep it simple** - no AGW, only KISS
+- **User controls audio devices** - Windows handles audio levels
+- **Modularity** - each function in separate file
+- **Python first** - focus on correctness before optimization
+
+### Architecture Constraints
+- No AGWPE support (removed)
+- No APRS-IS gateway in core (can be added as plugin later)
+- Audio device selection is mandatory for TX/RX
+- Windows audio levels set via OS mixer, not app
 - [ ] TCP KISS server stability testing
 - [ ] UDP KISS support
 - [ ] Multiple client handling

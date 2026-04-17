@@ -97,8 +97,6 @@ def main():
     config = AppConfig.load()
     logger.info(f"KISS Server: {config.kiss_server.host}:{config.kiss_server.port} "
                 f"(enabled={config.kiss_server.enabled})")
-    logger.info(f"AGWPE Server: {config.agwpe_server.host}:{config.agwpe_server.port} "
-                f"(enabled={config.agwpe_server.enabled})")
     
     try:
         # Uruchom aplikację
