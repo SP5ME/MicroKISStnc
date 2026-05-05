@@ -1,0 +1,51 @@
+# ============================================================================
+# MicroKISStnc v1 - Requirements
+# 
+# Aplikacja: Bidirectional KISS TX/RX Transceiver
+# Cel: Zapewnia interfejs KISS (port 8001) kompatybilny z Direwolf
+# ============================================================================
+
+# GUI Framework
+# ---------------
+PyQt6>=6.0.0
+PyQt6-Qt6>=6.0.0
+
+# Audio Processing
+# ----------------
+# sounddevice: System audio input/output za pomocą PyAudio
+# Wersja 0.4.5+ wymagana dla pełnej kompatybilności Windows
+sounddevice>=0.4.5
+
+# Numerical Computing
+# -------------------
+# numpy: Przetwarzanie sygnałów, AFSK modulacja/demodulacja
+numpy>=1.21.0
+
+# Signal Processing
+# -----------------
+# scipy: Resampling i zaawansowana obróbka sygnałów (wymagane dla RX Goertzel)
+scipy>=1.7.0
+
+# Serial Communication
+# --------------------
+# pyserial: PTT control via COM ports
+pyserial>=3.5
+
+# Windows System Integration
+# ---------------------------
+# pycaw: Windows system volume monitoring
+pycaw>=20211025
+
+# Optional: Plotting & Debug
+# ---------------------------
+# matplotlib: Wizualizacja sygnałów audio (dla debug_tools)
+# scipy: Zaawansowana obróbka sygnałów
+# matplotlib>=3.4.0  # Uncomment jeśli chcesz wykresy
+# scipy>=1.7.0       # Uncomment jeśli potrzebujesz FFT
+
+# ============================================================================
+# Notatka: Python 3.8+ wymagane (type hints, asyncio)
+# Windows: PyAudio instaluje się automatycznie przez sounddevice
+# Linux: Może wymagać: sudo apt-get install libportaudio2
+# macOS: Brew install portaudio
+# ============================================================================
