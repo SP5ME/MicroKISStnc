@@ -9,12 +9,8 @@ Najwazniejsze porty:
 - KISS Server: 127.0.0.1:8001
 - Web UI (opcjonalne): 0.0.0.0:8765
 
-Wazne:
-- Wylaczenie Web UI nie zatrzymuje KISS servera.
-- Pole Allowed addresses jest zawsze widoczne.
-
 ### Instrukcja uruchomienia
-1. Przejdz do folderu aplikacji (np. microkisstnc_dev_v8).
+1. Przejdz do folderu aplikacji.
 2. Zainstaluj zaleznosci:
    - pip install -r requirements.txt
 3. Uruchom aplikacje:
