@@ -1,7 +1,6 @@
 # MicroKISStnc public v1
 
-ANG version below (wersja angielska ponizej)
-
+ANG version below
 ## PL
 
 To jest katalog testowy przed oficjalnym wydaniem. Aplikacja jest przygotowana jako:
