@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd h:\\\\GitHub\\\\MicroKISStnc\\\\TNC-APP ; python generate_test_aprs\\.py$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
