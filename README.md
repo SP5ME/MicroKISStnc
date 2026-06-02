@@ -1,6 +1,7 @@
 # MicroKISStnc public v1
 
-## PL
+EXE:
+[MicroKISStnc.exe](https://github.com/SP5ME/MicroKISStnc/releases/download/v1.0.0/MicroKISStnc.exe)
 
 ### Krotki opis aplikacji
 MicroKISStnc public v1 to desktopowy TNC APRS/KISS. Aplikacja zamienia ramki KISS na audio AFSK (TX) oraz audio AFSK na ramki KISS (RX), dzieki czemu moze wspolpracowac z typowymi klientami APRS.
@@ -42,7 +43,6 @@ Sekcja: PTT / CAT
 - PTT type: wybor sposobu sterowania PTT (RIG/DTR/RTS/NONE).
 - Rig model: profil radia CAT/CI-V.
 - PTT path (serial): port COM dla sterowania PTT.
-- ptt_share: wspoldzielenie portu PTT.
 - CAT connection: tryb TCP albo SERIAL.
 - Hamlib host / Port: ustawienia rigctld.
 - Test: test polaczenia Hamlib/CAT.
@@ -109,7 +109,6 @@ Section: PTT / CAT
 - PTT type: choose PTT control mode (RIG/DTR/RTS/NONE).
 - Rig model: CAT/CI-V profile.
 - PTT path (serial): COM port for PTT.
-- ptt_share: shared PTT port mode.
 - CAT connection: TCP or SERIAL mode.
 - Hamlib host / Port: rigctld settings.
 - Test: Hamlib/CAT connectivity test.
