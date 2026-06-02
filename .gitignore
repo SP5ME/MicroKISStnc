@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+
+# IDE/local workspace
+.vscode/
+.idea/
+
+# Build artifacts
+build/
+dist/
+release/
+*.spec
+
+# Local runtime/config
+*.log
+config.json
