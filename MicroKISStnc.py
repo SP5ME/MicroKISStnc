@@ -1187,7 +1187,6 @@ class MicroKISStnc(QMainWindow):
         basic_layout = QVBoxLayout()
         basic_layout.setContentsMargins(0, 0, 0, 0)
         basic_layout.setSpacing(12)
-        basic_layout.addWidget(self.section_header)
         basic_layout.addWidget(self.section_devices)
         basic_layout.addWidget(self.section_ptt)
         basic_layout.addStretch()
@@ -1220,6 +1219,7 @@ class MicroKISStnc(QMainWindow):
         self.config_tabs.addTab(self.net_config_page, self._t("net_config"))
         self.config_tabs.currentChanged.connect(self._on_config_tab_changed)
 
+        config_page_layout.addWidget(self.section_header)
         config_page_layout.addWidget(self.config_tabs)
         self.config_page.setLayout(config_page_layout)
         self.main_stack.addWidget(self.config_page)
