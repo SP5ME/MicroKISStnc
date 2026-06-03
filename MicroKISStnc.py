@@ -270,7 +270,6 @@ class MicroKISStnc(QMainWindow):
             "monitor_freeze": "Freeze monitor:",
             "config_toggle": "Configuration",
             "config_toggle_off": "Configuration OFF",
-            "back_monitor": "Back to monitor",
             "ptt_active_low": "Invert",
             "rts_on": "RTS forced ON",
             "dtr_on": "DTR forced ON",
@@ -291,7 +290,7 @@ class MicroKISStnc(QMainWindow):
             "tt_cat_serial_baud": "CAT speed on serial port. Must match radio settings.",
             "tt_hamlib_host": "rigctld host address (Hamlib TCP), usually 127.0.0.1.",
             "tt_hamlib_port": "rigctld port (default 4532).",
-            "tt_hamlib_test": "Checks CAT connection using selected mode (TCP or Serial).",
+            "tt_hamlib_test": "Queries radio frequency and checks the CAT response.",
             "tt_ptt_test": "Manual PTT test toggle (green=OFF, red=ON).",
             "tt_rts_active_low": "Invert RTS logic: LOW=TX, HIGH=RX.",
             "tt_dtr_active_low": "Invert DTR logic: LOW=TX, HIGH=RX.",
@@ -332,7 +331,6 @@ class MicroKISStnc(QMainWindow):
             "connection_test": "Verbindungstest",
             "monitor_group": "MONITOR - Frame-Protokoll",
             "config_toggle": "Konfiguration", "config_toggle_off": "Konfiguration AUS",
-            "back_monitor": "Zuruck zum Monitor",
             "ptt_active_low": "Invert",
             "rts_on": "RTS fest EIN", "dtr_on": "DTR fest EIN", "ptt_test": "PTT TEST", "tx_delay": "TX Delay (ms):",
             "tx_tail": "TX Tail (ms):",
@@ -350,7 +348,7 @@ class MicroKISStnc(QMainWindow):
             "tt_cat_serial_baud": "CAT-Geschwindigkeit am seriellen Port. Muss zu den Funkgerat-Einstellungen passen.",
             "tt_hamlib_host": "rigctld-Hostadresse (Hamlib TCP), meist 127.0.0.1.",
             "tt_hamlib_port": "rigctld-Port (Standard 4532).",
-            "tt_hamlib_test": "Pruft die CAT-Verbindung im gewahlten Modus (TCP oder seriell).",
+            "tt_hamlib_test": "Fragt die Radiofrequenz ab und prueft die CAT-Antwort.",
             "tt_ptt_test": "Manueller PTT-Testschalter (grun=OFF, rot=ON).",
             "tt_rts_active_low": "Invertiert die RTS-Logik: LOW=TX, HIGH=RX.",
             "tt_dtr_active_low": "Invertiert die DTR-Logik: LOW=TX, HIGH=RX.",
@@ -389,7 +387,6 @@ class MicroKISStnc(QMainWindow):
             "connection_test": "Test connexion",
             "monitor_group": "MONITEUR - Journal des trames",
             "config_toggle": "Configuration", "config_toggle_off": "Configuration OFF",
-            "back_monitor": "Retour au moniteur",
             "ptt_active_low": "Invert",
             "rts_on": "RTS force ON", "dtr_on": "DTR force ON", "ptt_test": "TEST PTT", "tx_delay": "Delai TX (ms) :",
             "tx_tail": "Queue TX (ms) :",
@@ -407,7 +404,7 @@ class MicroKISStnc(QMainWindow):
             "tt_cat_serial_baud": "Vitesse CAT du port serie. Doit correspondre aux reglages de la radio.",
             "tt_hamlib_host": "Adresse hote rigctld (Hamlib TCP), generalement 127.0.0.1.",
             "tt_hamlib_port": "Port rigctld (par defaut 4532).",
-            "tt_hamlib_test": "Verifie la connexion CAT avec le mode selectionne (TCP ou serie).",
+            "tt_hamlib_test": "Interroge la frequence radio et verifie la reponse CAT.",
             "tt_ptt_test": "Bascule test PTT manuel (vert=OFF, rouge=ON).",
             "tt_rts_active_low": "Inverse la logique RTS : BAS=TX, HAUT=RX.",
             "tt_dtr_active_low": "Inverse la logique DTR : BAS=TX, HAUT=RX.",
@@ -446,7 +443,6 @@ class MicroKISStnc(QMainWindow):
             "connection_test": "Probar conexion",
             "monitor_group": "MONITOR - Registro de tramas",
             "config_toggle": "Configuracion", "config_toggle_off": "Configuracion OFF",
-            "back_monitor": "Volver al monitor",
             "ptt_active_low": "Invert",
             "rts_on": "RTS forzado ON", "dtr_on": "DTR forzado ON", "ptt_test": "PRUEBA PTT", "tx_delay": "Retardo TX (ms):",
             "tx_tail": "Cola TX (ms):",
@@ -464,7 +460,7 @@ class MicroKISStnc(QMainWindow):
             "tt_cat_serial_baud": "Velocidad CAT del puerto serie. Debe coincidir con la configuracion de la radio.",
             "tt_hamlib_host": "Direccion del host rigctld (Hamlib TCP), normalmente 127.0.0.1.",
             "tt_hamlib_port": "Puerto rigctld (predeterminado 4532).",
-            "tt_hamlib_test": "Comprueba la conexion CAT usando el modo seleccionado (TCP o serie).",
+            "tt_hamlib_test": "Consulta la frecuencia de la radio y verifica la respuesta CAT.",
             "tt_ptt_test": "Conmutador manual de prueba PTT (verde=OFF, rojo=ON).",
             "tt_rts_active_low": "Invierte la logica RTS: BAJO=TX, ALTO=RX.",
             "tt_dtr_active_low": "Invierte la logica DTR: BAJO=TX, ALTO=RX.",
@@ -534,7 +530,6 @@ class MicroKISStnc(QMainWindow):
             "monitor_freeze": "Zamroź monitor:",
             "config_toggle": "Konfiguracja",
             "config_toggle_off": "Konfiguracja OFF",
-            "back_monitor": "Powrót do monitora",
             "ptt_active_low": "Invert",
             "rts_on": "RTS wymuszone ON",
             "dtr_on": "DTR wymuszone ON",
@@ -555,7 +550,7 @@ class MicroKISStnc(QMainWindow):
             "tt_cat_serial_baud": "Prędkość CAT na porcie szeregowym. Musi zgadzać się z ustawieniami radia.",
             "tt_hamlib_host": "Adres hosta rigctld (Hamlib TCP), zwykle 127.0.0.1.",
             "tt_hamlib_port": "Port rigctld (domyślnie 4532).",
-            "tt_hamlib_test": "Sprawdza połączenie CAT w wybranym trybie (TCP lub szeregowy).",
+            "tt_hamlib_test": "Odpytuje radio o częstotliwość i sprawdza odpowiedź CAT.",
             "tt_ptt_test": "Ręczny test PTT (zielony=OFF, czerwony=ON).",
             "tt_rts_active_low": "Odwraca logikę RTS: NISKI=TX, WYSOKI=RX.",
             "tt_dtr_active_low": "Odwraca logikę DTR: NISKI=TX, WYSOKI=RX.",
@@ -987,8 +982,6 @@ class MicroKISStnc(QMainWindow):
             self.section_monitor.setTitle(self._t("monitor_group"))
         if hasattr(self, "btn_toggle_config_sections"):
             self.btn_toggle_config_sections.setText(self._t("config_toggle"))
-        if hasattr(self, "btn_back_to_monitor"):
-            self.btn_back_to_monitor.setText(self._t("back_monitor"))
         if hasattr(self, "label_cat_serial_port"):
             self.label_cat_serial_port.setText(self._t("cat_serial_port"))
         if hasattr(self, "label_cat_baud"):
@@ -1235,6 +1228,12 @@ class MicroKISStnc(QMainWindow):
         self.config.set("ptt.rig_serial_stop_bits", self.cat_serial_stop_bits)
         self.config.set("ptt.rig_model", self.rig_model)
         self.config.save()
+
+    def _reset_hamlib_status(self) -> None:
+        """Reset Hamlib status after CAT settings change."""
+        if hasattr(self, "label_hamlib_status"):
+            self.label_hamlib_status.setText(self._t("hamlib_not_tested"))
+            self.label_hamlib_status.setStyleSheet("color: gray;")
     
     def check_port_available(self, port: int) -> bool:
         """Check if port is available for binding"""
@@ -1341,7 +1340,7 @@ class MicroKISStnc(QMainWindow):
         self.scroll_content = QWidget()
         self.scroll_layout = QVBoxLayout()
         self.scroll_layout.setSpacing(12)
-        self.scroll_layout.setContentsMargins(10, 10, 10, 10)
+        self.scroll_layout.setContentsMargins(8, 8, 8, 8)
 
         # Build sections once, then move them between layouts as needed.
         self.section_header = self.create_header_section()
@@ -1531,8 +1530,6 @@ class MicroKISStnc(QMainWindow):
             self.btn_toggle_config_sections.setChecked(False)
             self.btn_toggle_config_sections.setText(self._t("config_toggle"))
             self.btn_toggle_config_sections.blockSignals(False)
-        if hasattr(self, "btn_back_to_monitor"):
-            self.btn_back_to_monitor.setVisible(False)
 
     def show_config_view(self, persist: bool = True) -> None:
         self.show_config_sections = True
@@ -1548,8 +1545,6 @@ class MicroKISStnc(QMainWindow):
             self.btn_toggle_config_sections.setChecked(True)
             self.btn_toggle_config_sections.setText(self._t("config_toggle"))
             self.btn_toggle_config_sections.blockSignals(False)
-        if hasattr(self, "btn_back_to_monitor"):
-            self.btn_back_to_monitor.setVisible(True)
 
     def show_about_view(self, persist: bool = True) -> None:
         if hasattr(self, "main_stack"):
@@ -1612,20 +1607,13 @@ class MicroKISStnc(QMainWindow):
         """Create header section - no frame"""
         widget = QWidget()
         layout = QVBoxLayout()
-        layout.setContentsMargins(0, 10, 0, 10)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
 
         # Close behavior toggle (top-right, near window controls)
         close_behavior_row = QHBoxLayout()
-        close_behavior_row.setContentsMargins(0, 0, 0, 2)
-        self.btn_back_to_monitor = QPushButton(self._t("back_monitor"))
-        self.btn_back_to_monitor.clicked.connect(lambda: self.show_monitor_view(persist=True))
-        self.btn_back_to_monitor.setVisible(False)
-        close_behavior_row.addWidget(self.btn_back_to_monitor)
+        close_behavior_row.setContentsMargins(0, 0, 0, 0)
         close_behavior_row.addStretch()
-        self.check_close_to_tray = QCheckBox(self._t("hide_to_tray"))
-        self.check_close_to_tray.setChecked(self.close_to_tray_enabled)
-        self.check_close_to_tray.toggled.connect(self.on_close_behavior_toggle_changed)
-        close_behavior_row.addWidget(self.check_close_to_tray)
         self.label_lang = QLabel(self._t("language"))
         close_behavior_row.addWidget(self.label_lang)
         self.combo_ui_lang = QComboBox()
@@ -1637,6 +1625,10 @@ class MicroKISStnc(QMainWindow):
         self._set_combo_by_data(self.combo_ui_lang, self.ui_language)
         self.combo_ui_lang.currentIndexChanged.connect(lambda _i: self._set_ui_language(self.combo_ui_lang.currentData(), persist=True))
         close_behavior_row.addWidget(self.combo_ui_lang)
+        self.check_close_to_tray = QCheckBox(self._t("hide_to_tray"))
+        self.check_close_to_tray.setChecked(self.close_to_tray_enabled)
+        self.check_close_to_tray.toggled.connect(self.on_close_behavior_toggle_changed)
+        close_behavior_row.addWidget(self.check_close_to_tray)
         layout.addLayout(close_behavior_row)
         
         # Title
@@ -1684,13 +1676,8 @@ class MicroKISStnc(QMainWindow):
         """Create monitor view top-row controls (tray/language)."""
         widget = QWidget()
         layout = QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 2)
+        layout.setContentsMargins(8, 0, 8, 0)
         layout.addStretch()
-
-        self.check_close_to_tray_monitor = QCheckBox(self._t("hide_to_tray"))
-        self.check_close_to_tray_monitor.setChecked(self.close_to_tray_enabled)
-        self.check_close_to_tray_monitor.toggled.connect(self.on_close_behavior_toggle_changed)
-        layout.addWidget(self.check_close_to_tray_monitor)
 
         self.label_lang_monitor = QLabel(self._t("language"))
         layout.addWidget(self.label_lang_monitor)
@@ -1707,6 +1694,11 @@ class MicroKISStnc(QMainWindow):
         )
         layout.addWidget(self.combo_ui_lang_monitor)
 
+        self.check_close_to_tray_monitor = QCheckBox(self._t("hide_to_tray"))
+        self.check_close_to_tray_monitor.setChecked(self.close_to_tray_enabled)
+        self.check_close_to_tray_monitor.toggled.connect(self.on_close_behavior_toggle_changed)
+        layout.addWidget(self.check_close_to_tray_monitor)
+
         widget.setLayout(layout)
         return widget
     
@@ -1715,7 +1707,7 @@ class MicroKISStnc(QMainWindow):
         group = QGroupBox(self._t("devices_group"))
         self.section_devices = group
         layout = QVBoxLayout()
-        layout.setContentsMargins(8, 20, 8, 14)
+        layout.setContentsMargins(8, 20, 8, 10)
         layout.setSpacing(8)
         
         # Audio IN (with refresh button)
@@ -1744,7 +1736,7 @@ class MicroKISStnc(QMainWindow):
         self.label_in_levels.setStyleSheet("color: gray;")
         layout.addWidget(self.label_in_levels)
         
-        layout.addSpacing(15)
+        layout.addSpacing(12)
         
         # Audio OUT (with refresh button)
         output_label_layout = QHBoxLayout()
@@ -2243,17 +2235,20 @@ class MicroKISStnc(QMainWindow):
         self.rig_connection = self._normalize_rig_connection(value)
         self._update_ptt_mode_controls(self.ptt_type)
         self._save_rig_connection_config()
+        self._reset_hamlib_status()
 
     def _on_cat_serial_port_changed(self, _index: int) -> None:
         """Persist CAT serial port selection."""
         value = self.combo_cat_serial_port.currentData() if hasattr(self, "combo_cat_serial_port") else None
         self.cat_serial_port = str(value or "")
         self._save_rig_connection_config()
+        self._reset_hamlib_status()
 
     def _on_cat_serial_baud_changed(self, value: int) -> None:
         """Persist CAT serial baudrate selection."""
         self.cat_serial_baud = int(value)
         self._save_rig_connection_config()
+        self._reset_hamlib_status()
 
     def _on_cat_serial_data_bits_changed(self, _index: int) -> None:
         """Persist CAT serial data bits."""
@@ -2288,6 +2283,7 @@ class MicroKISStnc(QMainWindow):
         self._save_rig_connection_config()
         self._update_rig_profile_hint()
         self._update_ptt_mode_controls(self.ptt_type)
+        self._reset_hamlib_status()
 
     def _on_ptt_port_changed(self, _index: int) -> None:
         """Update serial ptt_path from combo selection."""
@@ -2396,6 +2392,8 @@ class MicroKISStnc(QMainWindow):
         """Create MONITOR section for frame log"""
         group = QGroupBox(self._t("monitor_group"))
         layout = QVBoxLayout()
+        layout.setContentsMargins(8, 20, 8, 10)
+        layout.setSpacing(8)
 
         freeze_layout = QHBoxLayout()
         self.btn_toggle_config_sections = QPushButton(self._t("config_toggle"))
@@ -2454,12 +2452,12 @@ class MicroKISStnc(QMainWindow):
         """Create about page."""
         widget = QWidget()
         layout = QVBoxLayout()
-        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(12)
 
         group = QGroupBox(self._t("about_title"))
         group_layout = QVBoxLayout()
-        group_layout.setContentsMargins(10, 18, 10, 10)
+        group_layout.setContentsMargins(8, 18, 8, 10)
         group_layout.setSpacing(8)
 
         self.label_about_desc = QLabel(self._t("about_description"))
@@ -3665,13 +3663,14 @@ class MicroKISStnc(QMainWindow):
             logger.info("[APP] Shutting down...")
             
             # Stop all background operations
+            self.tone_gen.stop_continuous()
+            self.active_tone_button = None
             self.stop_audio_monitoring()
             self.stop_audio_output()
             self.system_volume_monitor.stop_monitoring()
             self._stop_web_ui()
             self.kiss_server.stop()
             self.meter_update_timer.stop()
-            self.tone_gen.stop_continuous()
             
             # Close serial port if open
             if self.ppt_serial is not None:
@@ -4342,12 +4341,8 @@ class MicroKISStnc(QMainWindow):
             raise ValueError("civaddr out of range")
         return value
 
-    def _send_serial_cat_ptt(self, active: bool) -> None:
-        """Send CAT PTT command over selected serial CAT port by model protocol."""
-        protocol = self._rig_protocol(self.rig_model)
-        if protocol == "GENERIC":
-            raise RuntimeError("Serial CAT generic profile is not implemented. Use rigctld TCP or choose Icom profile")
-
+    def _cat_serial_connection_settings(self) -> tuple[str, int, int, int, int]:
+        """Return serial CAT connection settings."""
         port = str(self.cat_serial_port or "").strip()
         if not port:
             port = str(self.ptt_port or "").strip()
@@ -4370,7 +4365,123 @@ class MicroKISStnc(QMainWindow):
             "1": serial.STOPBITS_ONE,
             "2": serial.STOPBITS_TWO,
         }
+        bytesize = bytesize_map.get(int(self.cat_serial_data_bits or 8), serial.EIGHTBITS)
+        parity = parity_map.get(str(self.cat_serial_parity or "N"), serial.PARITY_NONE)
+        stopbits = stopbits_map.get(str(self.cat_serial_stop_bits or "1"), serial.STOPBITS_ONE)
+        return port, baud, bytesize, parity, stopbits
 
+    def _open_cat_serial_port(self) -> serial.Serial:
+        """Open the CAT serial port with the current settings."""
+        port, baud, bytesize, parity, stopbits = self._cat_serial_connection_settings()
+        return serial.Serial(
+            port=port,
+            baudrate=baud,
+            timeout=0.75,
+            bytesize=bytesize,
+            parity=parity,
+            stopbits=stopbits,
+        )
+
+    def _format_frequency_text(self, frequency_hz: Optional[int]) -> str:
+        """Format frequency for status text."""
+        if frequency_hz is None:
+            return "unknown"
+        if frequency_hz >= 1_000_000:
+            return f"{frequency_hz / 1_000_000:.6f} MHz"
+        if frequency_hz >= 1_000:
+            return f"{frequency_hz / 1_000:.3f} kHz"
+        return f"{frequency_hz} Hz"
+
+    def _parse_ascii_frequency_response(self, response: str) -> Optional[int]:
+        """Parse ASCII CAT frequency response such as FA00007000000;."""
+        if not response:
+            return None
+        match = re.search(r"(?:FA|FB|IF)?(\d{6,11})", response.upper())
+        if not match:
+            match = re.search(r"(\d{6,11})", response)
+        if not match:
+            return None
+        try:
+            return int(match.group(1))
+        except Exception:
+            return None
+
+    def _parse_icom_civ_frequency_response(self, response: bytes) -> Optional[int]:
+        """Parse Icom CI-V frequency response into Hz."""
+        if not response or len(response) < 10:
+            return None
+        if response[0] != 0xFE or response[1] != 0xFE or response[-1] != 0xFD:
+            return None
+        try:
+            command_index = response.index(0x03)
+        except ValueError:
+            return None
+        data = response[command_index + 1:-1]
+        if len(data) < 5:
+            return None
+        digits = "".join(f"{byte:02X}" for byte in reversed(data[:5]))
+        try:
+            return int(digits)
+        except Exception:
+            return None
+
+    def _query_serial_frequency(self) -> tuple[Optional[int], str]:
+        """Query frequency from the selected CAT serial protocol."""
+        protocol = self._rig_protocol(self.rig_model)
+        if protocol == "GENERIC":
+            raise RuntimeError("Serial CAT generic profile is not implemented")
+
+        with self._open_cat_serial_port() as ser:
+            dtr_force = self._state_to_bool(self.dtr_state)
+            rts_force = self._state_to_bool(self.rts_state)
+            if dtr_force is not None:
+                ser.dtr = dtr_force
+            if rts_force is not None:
+                ser.rts = rts_force
+            ser.reset_input_buffer()
+
+            if protocol == "ICOM_CIV":
+                civ = self._parse_civ_addr()
+                query = bytes([0xFE, 0xFE, civ, 0xE0, 0x03, 0xFD])
+                ser.write(query)
+                ser.flush()
+                for _ in range(4):
+                    response = ser.read_until(b"\xFD")
+                    if not response:
+                        break
+                    if response == query:
+                        logger.debug(f"[PTT-CAT] Ignoring echoed CI-V query: {response.hex(' ')}")
+                        continue
+                    frequency_hz = self._parse_icom_civ_frequency_response(response)
+                    if frequency_hz is not None:
+                        return frequency_hz, f"CI-V response ({response.hex(' ')})"
+                    return None, f"CI-V response ({response.hex(' ')})"
+                return None, "no response"
+
+            query = b"FA;"
+            ser.write(query)
+            ser.flush()
+            for _ in range(4):
+                response = ser.read_until(b";")
+                if not response:
+                    break
+                response_text = response.decode("utf-8", errors="ignore").strip()
+                if response_text == query.decode("ascii"):
+                    logger.debug(f"[PTT-CAT] Ignoring echoed CAT query: {response_text}")
+                    continue
+                frequency_hz = self._parse_ascii_frequency_response(response_text)
+                if frequency_hz is not None:
+                    return frequency_hz, response_text or "frequency response"
+                return None, response_text
+            return None, "no response"
+
+    def _send_serial_cat_ptt(self, active: bool) -> None:
+        """Send CAT PTT command over selected serial CAT port by model protocol."""
+        protocol = self._rig_protocol(self.rig_model)
+        if protocol == "GENERIC":
+            raise RuntimeError("Serial CAT generic profile is not implemented. Use rigctld TCP or choose Icom profile")
+
+        port, baud, bytesize, parity, stopbits = self._cat_serial_connection_settings()
         if protocol == "ICOM_CIV":
             civ = self._parse_civ_addr()
             value = 0x01 if active else 0x00
@@ -4387,9 +4498,9 @@ class MicroKISStnc(QMainWindow):
             port=port,
             baudrate=baud,
             timeout=0.25,
-            bytesize=bytesize_map.get(int(self.cat_serial_data_bits or 8), serial.EIGHTBITS),
-            parity=parity_map.get(str(self.cat_serial_parity or "N"), serial.PARITY_NONE),
-            stopbits=stopbits_map.get(str(self.cat_serial_stop_bits or "1"), serial.STOPBITS_ONE),
+            bytesize=bytesize,
+            parity=parity,
+            stopbits=stopbits,
         ) as ser:
             dtr_force = self._state_to_bool(self.dtr_state)
             rts_force = self._state_to_bool(self.rts_state)
@@ -4421,23 +4532,34 @@ class MicroKISStnc(QMainWindow):
         return data.decode("utf-8", errors="ignore").strip()
 
     def test_hamlib_connection(self) -> bool:
-        """Check if rigctld responds on configured endpoint."""
+        """Query frequency to verify the configured CAT path and response."""
         try:
             if self.rig_connection == "SERIAL":
-                self._send_serial_cat_ptt(False)
-                msg = f"CAT serial: OK ({self.cat_serial_port} @ {self.cat_serial_baud})"
-                self.label_hamlib_status.setText(msg)
-                self.label_hamlib_status.setStyleSheet("color: #29a34a;")
-                logger.info(f"[PTT-CAT] {msg}")
-                return True
+                frequency_hz, details = self._query_serial_frequency()
+                if frequency_hz is not None:
+                    msg = f"CAT serial: OK ({self._format_frequency_text(frequency_hz)}) [{details}]"
+                    self.label_hamlib_status.setText(msg)
+                    self.label_hamlib_status.setStyleSheet("color: #29a34a;")
+                    logger.info(f"[PTT-CAT] {msg}")
+                    return True
+                self.label_hamlib_status.setText(f"CAT serial: error ({details})")
+                self.label_hamlib_status.setStyleSheet("color: #c46b00;")
+                logger.warning(f"[PTT-CAT] Serial frequency query failed: {details}")
+                return False
 
             self._save_hamlib_config_from_ui()
-            response = self._hamlib_send_command("t")
-            ok = bool(response) and "RPRT -" not in response
-            if ok:
-                self.label_hamlib_status.setText(f"Hamlib TCP: OK ({response})")
+            response = self._hamlib_send_command("f")
+            frequency_hz = None
+            try:
+                frequency_hz = int(response.strip())
+            except Exception:
+                frequency_hz = None
+            if frequency_hz is not None and "RPRT -" not in response:
+                self.label_hamlib_status.setText(
+                    f"Hamlib TCP: OK ({self._format_frequency_text(frequency_hz)})"
+                )
                 self.label_hamlib_status.setStyleSheet("color: #29a34a;")
-                logger.info(f"[PTT-HAMLIB] Connection OK: {response}")
+                logger.info(f"[PTT-HAMLIB] Frequency OK: {response}")
                 return True
             self.label_hamlib_status.setText(f"Hamlib TCP: error ({response or 'no response'})")
             self.label_hamlib_status.setStyleSheet("color: #c46b00;")
@@ -5184,6 +5306,7 @@ class MicroKISStnc(QMainWindow):
             self._save_rig_connection_config()
             self._update_ptt_mode_controls(self.ptt_type)
             self._update_rig_profile_hint()
+            self._reset_hamlib_status()
 
             if bool(data.get("test", False)):
                 ok = self.test_hamlib_connection()
