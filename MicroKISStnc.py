@@ -221,6 +221,14 @@ class MicroKISStnc(QMainWindow):
             "advanced_mode": "Advanced",
             "basic_tab": "Basic",
             "net_config": "Net Config",
+            "main_tab_monitor": "Monitor",
+            "main_tab_config": "Configuration",
+            "main_tab_about": "About",
+            "about_title": "About application",
+            "about_description": "Desktop APRS/KISS TNC for audio, PTT and network control.",
+            "about_build": "Build:",
+            "about_kiss": "KISS server:",
+            "about_web": "Web UI:",
             "web_enabled": "Web interface enabled",
             "allowed_addresses": "Allowed addresses",
             "allowed_placeholder": "0.0.0.0, 192.168.1.20 or 192.168.1.0/24",
@@ -301,6 +309,14 @@ class MicroKISStnc(QMainWindow):
             "advanced_mode": "Erweitert",
             "basic_tab": "Einfach",
             "net_config": "Netzwerk",
+            "main_tab_monitor": "Monitor",
+            "main_tab_config": "Konfiguration",
+            "main_tab_about": "Info",
+            "about_title": "Informationen zur Anwendung",
+            "about_description": "Desktop-APRS/KISS-TNC für Audio-, PTT- und Netzwerksteuerung.",
+            "about_build": "Build:",
+            "about_kiss": "KISS-Server:",
+            "about_web": "Web UI:",
             "web_enabled": "WeboberflĂ¤che aktiviert", "allowed_addresses": "Erlaubte Adressen", "toggle": "Hinzufugen/Entfernen",
             "devices_group": "GERĂ„TE IN/OUT", "refresh": "Aktualisieren", "signal_level": "Signalpegel:",
             "test_tones": "TesttĂ¶ne:", "both": "Beide", "ptt_group": "PTT-STEUERUNG",
@@ -347,6 +363,14 @@ class MicroKISStnc(QMainWindow):
             "advanced_mode": "Avance",
             "basic_tab": "Basique",
             "net_config": "Reseau",
+            "main_tab_monitor": "Moniteur",
+            "main_tab_config": "Configuration",
+            "main_tab_about": "A propos",
+            "about_title": "A propos de l'application",
+            "about_description": "TNC de bureau APRS/KISS pour l'audio, le PTT et le reseau.",
+            "about_build": "Build :",
+            "about_kiss": "Serveur KISS :",
+            "about_web": "Web UI :",
             "web_enabled": "Interface web activĂ©e", "allowed_addresses": "Adresses autorisĂ©es", "toggle": "Ajouter/Retirer",
             "devices_group": "PĂ‰RIPHĂ‰RIQUES IN/OUT", "refresh": "RafraĂ®chir", "signal_level": "Niveau du signal :",
             "test_tones": "TonalitĂ©s de test :", "both": "Les deux", "ptt_group": "CONTRĂ”LE PTT",
@@ -393,6 +417,14 @@ class MicroKISStnc(QMainWindow):
             "advanced_mode": "Avanzado",
             "basic_tab": "Basico",
             "net_config": "Red",
+            "main_tab_monitor": "Monitor",
+            "main_tab_config": "Configuracion",
+            "main_tab_about": "Acerca de",
+            "about_title": "Acerca de la aplicacion",
+            "about_description": "TNC APRS/KISS de escritorio para audio, PTT y control de red.",
+            "about_build": "Build:",
+            "about_kiss": "Servidor KISS:",
+            "about_web": "Web UI:",
             "web_enabled": "Interfaz web habilitada", "allowed_addresses": "Direcciones permitidas", "toggle": "Agregar/Quitar",
             "devices_group": "DISPOSITIVOS IN/OUT", "refresh": "Actualizar", "signal_level": "Nivel de seĂ±al:",
             "test_tones": "Tonos de prueba:", "both": "Ambos", "ptt_group": "CONTROL PTT",
@@ -441,6 +473,14 @@ class MicroKISStnc(QMainWindow):
             "advanced_mode": "Zaawansowany",
             "basic_tab": "Podstawowy",
             "net_config": "Sieć",
+            "main_tab_monitor": "Monitor",
+            "main_tab_config": "Konfiguracja",
+            "main_tab_about": "O aplikacji",
+            "about_title": "O aplikacji",
+            "about_description": "Desktopowy TNC APRS/KISS do audio, PTT i sterowania siecią.",
+            "about_build": "Wersja:",
+            "about_kiss": "Serwer KISS:",
+            "about_web": "Web UI:",
             "web_enabled": "Interfejs web włączony",
             "allowed_addresses": "Dozwolone adresy",
             "allowed_placeholder": "0.0.0.0, 192.168.1.20 lub 192.168.1.0/24",
@@ -789,6 +829,20 @@ class MicroKISStnc(QMainWindow):
             self.label_subtitle.setText(self._t("config_subtitle"))
         if hasattr(self, "label_created_by"):
             self.label_created_by.setText(self._t("created_by"))
+        if hasattr(self, "main_stack") and self.main_stack.count() >= 3:
+            self.main_stack.setTabText(0, self._t("main_tab_monitor"))
+            self.main_stack.setTabText(1, self._t("main_tab_config"))
+            self.main_stack.setTabText(2, self._t("main_tab_about"))
+        if hasattr(self, "label_about_desc"):
+            self.label_about_desc.setText(self._t("about_description"))
+        if hasattr(self, "label_about_build"):
+            self.label_about_build.setText(f"{self._t('about_build')} {self.app_build_tag}")
+        if hasattr(self, "label_about_kiss"):
+            self.label_about_kiss.setText(f"{self._t('about_kiss')} 127.0.0.1:{KISS_SERVER_PORT}")
+        if hasattr(self, "label_about_web"):
+            self.label_about_web.setText(f"{self._t('about_web')} {WEB_UI_BIND_HOST}:{WEB_UI_PORT}")
+        if hasattr(self, "label_about_author"):
+            self.label_about_author.setText(self._t("created_by"))
         if hasattr(self, "label_config_mode"):
             self.label_config_mode.setText(self._t("config_mode"))
         if hasattr(self, "combo_config_mode") and self.combo_config_mode.count() >= 2:
@@ -1159,7 +1213,11 @@ class MicroKISStnc(QMainWindow):
         self.section_network.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         self.section_monitor.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-        self.main_stack = QStackedWidget()
+        self.main_stack = QTabWidget()
+        self.main_stack.setDocumentMode(True)
+        self.main_stack.setMovable(False)
+        self.main_stack.setUsesScrollButtons(False)
+        self.main_stack.tabBar().setExpanding(True)
 
         # Monitor view: only monitor section.
         self.monitor_page = QWidget()
@@ -1169,7 +1227,7 @@ class MicroKISStnc(QMainWindow):
         monitor_layout.addWidget(self.monitor_top_controls)
         monitor_layout.addWidget(self.section_monitor, 1)
         self.monitor_page.setLayout(monitor_layout)
-        self.main_stack.addWidget(self.monitor_page)
+        self.main_stack.addTab(self.monitor_page, self._t("main_tab_monitor"))
 
         self.config_page = QWidget()
         config_page_layout = QVBoxLayout()
@@ -1222,7 +1280,12 @@ class MicroKISStnc(QMainWindow):
         config_page_layout.addWidget(self.section_header)
         config_page_layout.addWidget(self.config_tabs)
         self.config_page.setLayout(config_page_layout)
-        self.main_stack.addWidget(self.config_page)
+        self.main_stack.addTab(self.config_page, self._t("main_tab_config"))
+
+        self.about_page = self.create_about_page()
+        self.main_stack.addTab(self.about_page, self._t("main_tab_about"))
+
+        self.main_stack.currentChanged.connect(self._on_main_tab_changed)
 
         root_layout.addWidget(self.main_stack)
         central_widget.setLayout(root_layout)
@@ -1243,6 +1306,15 @@ class MicroKISStnc(QMainWindow):
         self.system_volume_monitor.start_monitoring()
         logger.info("[APP] System volume monitoring started")
 
+    def _on_main_tab_changed(self, index: int) -> None:
+        """Synchronize main tab selection with current view."""
+        if index == 0:
+            self.show_monitor_view(persist=False)
+        elif index == 1:
+            self.show_config_view(persist=False)
+        elif index == 2:
+            self.show_about_view(persist=False)
+
     def _set_config_sections_visible(self, visible: bool, persist: bool = True) -> None:
         """Compatibility shim: switch between monitor and configuration view."""
         if bool(visible):
@@ -1255,8 +1327,10 @@ class MicroKISStnc(QMainWindow):
         if persist:
             self.config.set("application.show_config_sections", False)
             self.config.save()
-        if hasattr(self, "main_stack") and hasattr(self, "monitor_page"):
-            self.main_stack.setCurrentWidget(self.monitor_page)
+        if hasattr(self, "main_stack"):
+            self.main_stack.blockSignals(True)
+            self.main_stack.setCurrentIndex(0)
+            self.main_stack.blockSignals(False)
         if hasattr(self, "btn_toggle_config_sections"):
             self.btn_toggle_config_sections.blockSignals(True)
             self.btn_toggle_config_sections.setChecked(False)
@@ -1270,8 +1344,10 @@ class MicroKISStnc(QMainWindow):
         if persist:
             self.config.set("application.show_config_sections", True)
             self.config.save()
-        if hasattr(self, "main_stack") and hasattr(self, "config_page"):
-            self.main_stack.setCurrentWidget(self.config_page)
+        if hasattr(self, "main_stack"):
+            self.main_stack.blockSignals(True)
+            self.main_stack.setCurrentIndex(1)
+            self.main_stack.blockSignals(False)
         if hasattr(self, "btn_toggle_config_sections"):
             self.btn_toggle_config_sections.blockSignals(True)
             self.btn_toggle_config_sections.setChecked(True)
@@ -1279,6 +1355,12 @@ class MicroKISStnc(QMainWindow):
             self.btn_toggle_config_sections.blockSignals(False)
         if hasattr(self, "btn_back_to_monitor"):
             self.btn_back_to_monitor.setVisible(True)
+
+    def show_about_view(self, persist: bool = True) -> None:
+        if hasattr(self, "main_stack"):
+            self.main_stack.blockSignals(True)
+            self.main_stack.setCurrentIndex(2)
+            self.main_stack.blockSignals(False)
 
     def _on_config_tab_changed(self, index: int) -> None:
         """Keep config mode combo and tab state aligned."""
@@ -1315,6 +1397,8 @@ class MicroKISStnc(QMainWindow):
 
         if hasattr(self, "advanced_ptt_widget"):
             self.advanced_ptt_widget.setVisible(normalized == "advanced")
+        if hasattr(self, "combo_ppt"):
+            self._update_ptt_mode_controls(self.combo_ppt.currentData() or self.ptt_type)
 
     def on_config_ui_mode_changed(self, _index: int) -> None:
         """Persist configuration UI mode change."""
@@ -1596,14 +1680,9 @@ class MicroKISStnc(QMainWindow):
         ptt_test_layout.addStretch()
         layout.addLayout(ptt_test_layout)
 
-        self.advanced_ptt_widget = QWidget()
-        advanced_ptt_layout = QVBoxLayout()
-        advanced_ptt_layout.setContentsMargins(0, 0, 0, 0)
-        advanced_ptt_layout.setSpacing(8)
-
         self.label_rig_control_title = QLabel(self._t("rig_cat_control"))
         self.label_rig_control_title.setStyleSheet("font-weight: bold;")
-        advanced_ptt_layout.addWidget(self.label_rig_control_title)
+        layout.addWidget(self.label_rig_control_title)
 
         rig_model_layout = QHBoxLayout()
         self.label_rig_model = QLabel(self._t("rig_model"))
@@ -1616,18 +1695,89 @@ class MicroKISStnc(QMainWindow):
         self.combo_rig_model.currentIndexChanged.connect(self._on_rig_model_changed)
         rig_model_layout.addWidget(self.combo_rig_model)
         rig_model_layout.addStretch()
-        advanced_ptt_layout.addLayout(rig_model_layout)
+        layout.addLayout(rig_model_layout)
 
         self.label_rig_profile_hint = QLabel("")
         self.label_rig_profile_hint.setStyleSheet("color: gray;")
-        advanced_ptt_layout.addWidget(self.label_rig_profile_hint)
+        layout.addWidget(self.label_rig_profile_hint)
+
+        cat_conn_layout = QHBoxLayout()
+        self.label_cat_connection = QLabel(self._t("cat_connection"))
+        cat_conn_layout.addWidget(self.label_cat_connection)
+        self.combo_rig_connection = QComboBox()
+        self.combo_rig_connection.addItem(self._t("tcp_connection"), "TCP")
+        self.combo_rig_connection.addItem(self._t("serial_connection"), "SERIAL")
+        self.combo_rig_connection.setToolTip(self._t("tt_cat_connection"))
+        self.combo_rig_connection.currentIndexChanged.connect(self._on_rig_connection_changed)
+        cat_conn_layout.addWidget(self.combo_rig_connection)
+        cat_conn_layout.addStretch()
+        layout.addLayout(cat_conn_layout)
+
+        cat_serial_layout = QHBoxLayout()
+        self.label_cat_serial_port = QLabel(self._t("cat_serial_port"))
+        cat_serial_layout.addWidget(self.label_cat_serial_port)
+        self.combo_cat_serial_port = QComboBox()
+        self.combo_cat_serial_port.addItem(self._t("select_com"), None)
+        self.combo_cat_serial_port.setToolTip(self._t("tt_cat_serial_port"))
+        self.combo_cat_serial_port.currentIndexChanged.connect(self._on_cat_serial_port_changed)
+        cat_serial_layout.addWidget(self.combo_cat_serial_port)
+        self.label_cat_baud = QLabel(self._t("baud"))
+        cat_serial_layout.addWidget(self.label_cat_baud)
+        self.spin_cat_serial_baud = QSpinBox()
+        self.spin_cat_serial_baud.setRange(1200, 115200)
+        self.spin_cat_serial_baud.setSingleStep(1200)
+        self.spin_cat_serial_baud.setToolTip(self._t("tt_cat_serial_baud"))
+        self.spin_cat_serial_baud.setValue(int(self.cat_serial_baud))
+        self.spin_cat_serial_baud.valueChanged.connect(self._on_cat_serial_baud_changed)
+        cat_serial_layout.addWidget(self.spin_cat_serial_baud)
+        cat_serial_layout.addStretch()
+        layout.addLayout(cat_serial_layout)
+
+        hamlib_layout = QHBoxLayout()
+        self.label_hamlib_host = QLabel(self._t("hamlib_host"))
+        hamlib_layout.addWidget(self.label_hamlib_host)
+        self.input_hamlib_host = QLineEdit()
+        self.input_hamlib_host.setPlaceholderText("127.0.0.1")
+        self.input_hamlib_host.setToolTip(self._t("tt_hamlib_host"))
+        self.input_hamlib_host.setText(self.hamlib_host)
+        hamlib_layout.addWidget(self.input_hamlib_host)
+
+        self.label_hamlib_port = QLabel(self._t("port"))
+        hamlib_layout.addWidget(self.label_hamlib_port)
+        self.spin_hamlib_port = QSpinBox()
+        self.spin_hamlib_port.setRange(1, 65535)
+        self.spin_hamlib_port.setToolTip(self._t("tt_hamlib_port"))
+        self.spin_hamlib_port.setValue(self.hamlib_port)
+        hamlib_layout.addWidget(self.spin_hamlib_port)
+
+        self.btn_hamlib_test = QPushButton(self._t("test"))
+        self.btn_hamlib_test.setToolTip(self._t("tt_hamlib_test"))
+        self.btn_hamlib_test.clicked.connect(self.test_hamlib_connection)
+        hamlib_layout.addWidget(self.btn_hamlib_test)
+        layout.addLayout(hamlib_layout)
+
+        self.label_hamlib_status = QLabel(self._t("hamlib_not_tested"))
+        self.label_hamlib_status.setStyleSheet("color: gray;")
+        layout.addWidget(self.label_hamlib_status)
+
+        self.input_hamlib_host.editingFinished.connect(self._save_hamlib_config_from_ui)
+        self.spin_hamlib_port.valueChanged.connect(self._save_hamlib_config_from_ui)
+
+        # Initialize checkbox states from persisted Hamlib-style line states.
+        self._set_combo_by_data(self.combo_rig_connection, self.rig_connection)
+        self._update_rig_profile_hint()
+
+        self.advanced_ptt_widget = QWidget()
+        advanced_ptt_layout = QVBoxLayout()
+        advanced_ptt_layout.setContentsMargins(0, 0, 0, 0)
+        advanced_ptt_layout.setSpacing(8)
 
         self.check_ptt_active_low = QCheckBox(self._t("ptt_active_low"))
         self.check_ptt_active_low.setToolTip(self._t("tt_ptt_active_low"))
         self.check_ptt_active_low.setChecked(self.ptt_active_low)
         self.check_ptt_active_low.toggled.connect(self._on_ptt_active_low_changed)
         advanced_ptt_layout.addWidget(self.check_ptt_active_low)
-        
+
         civ_layout = QHBoxLayout()
         self.label_civaddr = QLabel(self._t("civaddr_label"))
         civ_layout.addWidget(self.label_civaddr)
@@ -1651,7 +1801,7 @@ class MicroKISStnc(QMainWindow):
         advanced_ptt_layout.addLayout(pin_layout)
         self.check_rts.toggled.connect(self._on_rts_state_changed)
         self.check_dts.toggled.connect(self._on_dtr_state_changed)
-        
+
         tx_delay_layout = QHBoxLayout()
         self.label_tx_delay = QLabel(self._t("tx_delay"))
         tx_delay_layout.addWidget(self.label_tx_delay)
@@ -1692,38 +1842,6 @@ class MicroKISStnc(QMainWindow):
         inv_layout.addStretch()
         advanced_ptt_layout.addLayout(inv_layout)
 
-        cat_conn_layout = QHBoxLayout()
-        self.label_cat_connection = QLabel(self._t("cat_connection"))
-        cat_conn_layout.addWidget(self.label_cat_connection)
-        self.combo_rig_connection = QComboBox()
-        self.combo_rig_connection.addItem(self._t("tcp_connection"), "TCP")
-        self.combo_rig_connection.addItem(self._t("serial_connection"), "SERIAL")
-        self.combo_rig_connection.setToolTip(self._t("tt_cat_connection"))
-        self.combo_rig_connection.currentIndexChanged.connect(self._on_rig_connection_changed)
-        cat_conn_layout.addWidget(self.combo_rig_connection)
-        cat_conn_layout.addStretch()
-        advanced_ptt_layout.addLayout(cat_conn_layout)
-
-        cat_serial_layout = QHBoxLayout()
-        self.label_cat_serial_port = QLabel(self._t("cat_serial_port"))
-        cat_serial_layout.addWidget(self.label_cat_serial_port)
-        self.combo_cat_serial_port = QComboBox()
-        self.combo_cat_serial_port.addItem(self._t("select_com"), None)
-        self.combo_cat_serial_port.setToolTip(self._t("tt_cat_serial_port"))
-        self.combo_cat_serial_port.currentIndexChanged.connect(self._on_cat_serial_port_changed)
-        cat_serial_layout.addWidget(self.combo_cat_serial_port)
-        self.label_cat_baud = QLabel(self._t("baud"))
-        cat_serial_layout.addWidget(self.label_cat_baud)
-        self.spin_cat_serial_baud = QSpinBox()
-        self.spin_cat_serial_baud.setRange(1200, 115200)
-        self.spin_cat_serial_baud.setSingleStep(1200)
-        self.spin_cat_serial_baud.setToolTip(self._t("tt_cat_serial_baud"))
-        self.spin_cat_serial_baud.setValue(int(self.cat_serial_baud))
-        self.spin_cat_serial_baud.valueChanged.connect(self._on_cat_serial_baud_changed)
-        cat_serial_layout.addWidget(self.spin_cat_serial_baud)
-        cat_serial_layout.addStretch()
-        advanced_ptt_layout.addLayout(cat_serial_layout)
-
         cat_serial_format_layout = QHBoxLayout()
         self.label_cat_data_bits = QLabel(self._t("data_bits"))
         cat_serial_format_layout.addWidget(self.label_cat_data_bits)
@@ -1756,43 +1874,6 @@ class MicroKISStnc(QMainWindow):
         cat_serial_format_layout.addWidget(self.combo_cat_stop_bits)
         cat_serial_format_layout.addStretch()
         advanced_ptt_layout.addLayout(cat_serial_format_layout)
-
-        hamlib_layout = QHBoxLayout()
-        self.label_hamlib_host = QLabel(self._t("hamlib_host"))
-        hamlib_layout.addWidget(self.label_hamlib_host)
-        self.input_hamlib_host = QLineEdit()
-        self.input_hamlib_host.setPlaceholderText("127.0.0.1")
-        self.input_hamlib_host.setToolTip(self._t("tt_hamlib_host"))
-        self.input_hamlib_host.setText(self.hamlib_host)
-        hamlib_layout.addWidget(self.input_hamlib_host)
-
-        self.label_hamlib_port = QLabel(self._t("port"))
-        hamlib_layout.addWidget(self.label_hamlib_port)
-        self.spin_hamlib_port = QSpinBox()
-        self.spin_hamlib_port.setRange(1, 65535)
-        self.spin_hamlib_port.setToolTip(self._t("tt_hamlib_port"))
-        self.spin_hamlib_port.setValue(self.hamlib_port)
-        hamlib_layout.addWidget(self.spin_hamlib_port)
-
-        self.btn_hamlib_test = QPushButton(self._t("test"))
-        self.btn_hamlib_test.setToolTip(self._t("tt_hamlib_test"))
-        self.btn_hamlib_test.clicked.connect(self.test_hamlib_connection)
-        hamlib_layout.addWidget(self.btn_hamlib_test)
-        advanced_ptt_layout.addLayout(hamlib_layout)
-
-        self.label_hamlib_status = QLabel(self._t("hamlib_not_tested"))
-        self.label_hamlib_status.setStyleSheet("color: gray;")
-        advanced_ptt_layout.addWidget(self.label_hamlib_status)
-
-        self.input_hamlib_host.editingFinished.connect(self._save_hamlib_config_from_ui)
-        self.spin_hamlib_port.valueChanged.connect(self._save_hamlib_config_from_ui)
-
-        # Initialize checkbox states from persisted Hamlib-style line states.
-        self.check_rts.setChecked(self.rts_state.upper() == "ON")
-        self.check_dts.setChecked(self.dtr_state.upper() == "ON")
-
-        self._set_combo_by_data(self.combo_rig_connection, self.rig_connection)
-        self._update_rig_profile_hint()
 
         self.advanced_ptt_widget.setLayout(advanced_ptt_layout)
         layout.addWidget(self.advanced_ptt_widget)
@@ -1874,6 +1955,12 @@ class MicroKISStnc(QMainWindow):
         mode_norm = self._normalize_ptt_type(mode)
         is_rig = (mode_norm == "RIG")
         is_serial = mode_norm in ("DTR", "RTS")
+        is_vox = mode_norm == "VOX"
+        is_advanced = self.config_ui_mode == "advanced"
+
+        def set_visible(widget, visible: bool) -> None:
+            if widget is not None and hasattr(widget, "setVisible"):
+                widget.setVisible(bool(visible))
 
         self.check_rts.setEnabled(is_serial)
         self.check_dts.setEnabled(is_serial)
@@ -1890,7 +1977,7 @@ class MicroKISStnc(QMainWindow):
         self.combo_rig_connection.setEnabled(is_rig)
         self.combo_rig_model.setEnabled(is_rig)
         if hasattr(self, "btn_ptt_test"):
-            self.btn_ptt_test.setEnabled(mode_norm != "VOX")
+            self.btn_ptt_test.setEnabled(not is_vox)
 
         is_cat_serial = is_rig and self.rig_connection == "SERIAL"
         is_cat_tcp = is_rig and self.rig_connection == "TCP"
@@ -1902,6 +1989,46 @@ class MicroKISStnc(QMainWindow):
         self.input_hamlib_host.setEnabled(is_cat_tcp)
         self.spin_hamlib_port.setEnabled(is_cat_tcp)
         self.input_civaddr.setEnabled(is_cat_serial and self._rig_uses_civ(self.rig_model))
+
+        set_visible(self.label_rig_control_title, is_rig)
+        set_visible(self.label_rig_model, is_rig)
+        set_visible(self.combo_rig_model, is_rig)
+        set_visible(self.label_rig_profile_hint, is_rig)
+        set_visible(self.label_cat_connection, is_rig)
+        set_visible(self.combo_rig_connection, is_rig)
+        set_visible(self.label_cat_serial_port, is_rig and is_cat_serial)
+        set_visible(self.combo_cat_serial_port, is_rig and is_cat_serial)
+        set_visible(self.label_cat_baud, is_rig and is_cat_serial)
+        set_visible(self.spin_cat_serial_baud, is_rig and is_cat_serial)
+        set_visible(self.label_hamlib_host, is_rig and is_cat_tcp)
+        set_visible(self.input_hamlib_host, is_rig and is_cat_tcp)
+        set_visible(self.label_hamlib_port, is_rig and is_cat_tcp)
+        set_visible(self.spin_hamlib_port, is_rig and is_cat_tcp)
+        set_visible(self.btn_hamlib_test, is_rig)
+        set_visible(self.label_hamlib_status, is_rig)
+        set_visible(self.label_ptt_path, is_serial)
+        set_visible(self.combo_ptt_port, is_serial)
+        set_visible(self.check_ptt_active_low, is_serial)
+        set_visible(self.btn_ptt_test, not is_vox)
+        set_visible(self.btn_ptt_reset_defaults, True)
+
+        set_visible(self.advanced_ptt_widget, is_advanced)
+        set_visible(self.label_civaddr, is_advanced and is_rig)
+        set_visible(self.input_civaddr, is_advanced and is_rig and is_cat_serial)
+        set_visible(self.check_rts, is_advanced and is_serial)
+        set_visible(self.check_dts, is_advanced and is_serial)
+        set_visible(self.label_tx_delay, is_advanced)
+        set_visible(self.spin_vox_delay, is_advanced)
+        set_visible(self.label_tx_tail, is_advanced)
+        set_visible(self.spin_tx_tail, is_advanced)
+        set_visible(self.check_rts_active_low, is_advanced and is_serial)
+        set_visible(self.check_dtr_active_low, is_advanced and is_serial)
+        set_visible(self.label_cat_data_bits, is_advanced and is_rig and is_cat_serial)
+        set_visible(self.combo_cat_data_bits, is_advanced and is_rig and is_cat_serial)
+        set_visible(self.label_cat_parity, is_advanced and is_rig and is_cat_serial)
+        set_visible(self.combo_cat_parity, is_advanced and is_rig and is_cat_serial)
+        set_visible(self.label_cat_stop_bits, is_advanced and is_rig and is_cat_serial)
+        set_visible(self.combo_cat_stop_bits, is_advanced and is_rig and is_cat_serial)
 
     def _on_rig_connection_changed(self, _index: int) -> None:
         """Switch CAT transport mode between TCP and serial."""
@@ -2073,7 +2200,7 @@ class MicroKISStnc(QMainWindow):
         self.btn_toggle_config_sections.setMinimumHeight(22)
         self.btn_toggle_config_sections.setMaximumHeight(22)
         self.btn_toggle_config_sections.clicked.connect(lambda: self.show_config_view(persist=True))
-        freeze_layout.addWidget(self.btn_toggle_config_sections)
+        self.btn_toggle_config_sections.setVisible(False)
         freeze_layout.addStretch()
 
         freeze_button_style = (
@@ -2120,6 +2247,40 @@ class MicroKISStnc(QMainWindow):
         group.setLayout(layout)
         group.setMinimumHeight(250)  # Ensure group has height too
         return group
+
+    def create_about_page(self) -> QWidget:
+        """Create about page."""
+        widget = QWidget()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(12)
+
+        group = QGroupBox(self._t("about_title"))
+        group_layout = QVBoxLayout()
+        group_layout.setContentsMargins(10, 18, 10, 10)
+        group_layout.setSpacing(8)
+
+        self.label_about_desc = QLabel(self._t("about_description"))
+        self.label_about_desc.setWordWrap(True)
+        group_layout.addWidget(self.label_about_desc)
+
+        self.label_about_build = QLabel(f"{self._t('about_build')} {self.app_build_tag}")
+        group_layout.addWidget(self.label_about_build)
+
+        self.label_about_kiss = QLabel(f"{self._t('about_kiss')} 127.0.0.1:{KISS_SERVER_PORT}")
+        group_layout.addWidget(self.label_about_kiss)
+
+        self.label_about_web = QLabel(f"{self._t('about_web')} {WEB_UI_BIND_HOST}:{WEB_UI_PORT}")
+        group_layout.addWidget(self.label_about_web)
+
+        self.label_about_author = QLabel(self._t("created_by"))
+        group_layout.addWidget(self.label_about_author)
+
+        group.setLayout(group_layout)
+        layout.addWidget(group)
+        layout.addStretch()
+        widget.setLayout(layout)
+        return widget
     
     def on_ptt_mode_changed(self, mode: str):
         """Handle PTT mode change"""
