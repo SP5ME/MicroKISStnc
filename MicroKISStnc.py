@@ -584,7 +584,7 @@ class MicroKISStnc(QMainWindow):
         self.ui_language = str(self.config.get("application.ui_language", "en") or "en").lower()
         if self.ui_language not in self.SUPPORTED_UI_LANGS:
             self.ui_language = "en"
-        self.app_build_tag = "v1-2026-05-25"
+        self.app_build_tag = "1.1.0"
         self.ax25_local_callsign = str(self.config.get("ax25.local_callsign", "N0CALL-1") or "N0CALL-1").upper()
         self.ax25_l2_enabled = bool(self.config.get("ax25.l2_enabled", True))
         self.ax25_l2_sessions: Dict[str, Dict[str, int]] = {}
