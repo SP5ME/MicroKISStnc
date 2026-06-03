@@ -18,3 +18,4 @@ release/
 # Local runtime/config
 *.log
 config.json
+run_app.bat
