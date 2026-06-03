@@ -46,6 +46,7 @@ class ConfigManager:
         "application": {
             "auto_start_rx": True,
             "auto_start_kiss": True,
+            "config_ui_mode": "basic",
         }
     }
     
