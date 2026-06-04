@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Test Tone Generator
-Generates AFSK test tones (1200 Hz, 2200 Hz, or Both)
+Generates AFSK test tones for the active modem profile
 """
 
 import numpy as np
@@ -15,9 +15,6 @@ logger = logging.getLogger(__name__)
 class TestToneGenerator:
     """Generate test tones for audio level adjustment"""
     
-    # AFSK standard frequencies
-    MARK_FREQ = 1200    # Hz (binary 1)
-    SPACE_FREQ = 2200   # Hz (binary 0)
     DEFAULT_SAMPLE_RATE = 44100  # Hz - default fallback
     
     def __init__(self, sample_rate: int = 44100):
@@ -28,11 +25,19 @@ class TestToneGenerator:
             sample_rate: Audio sample rate in Hz (must match output device rate!)
         """
         self.sample_rate = sample_rate  # Store as instance variable (can be changed)
+        self.mark_freq = 1200.0
+        self.space_freq = 2200.0
         self.is_generating = False
         self.generation_thread: Optional[Thread] = None
         self.stop_event = Event()
         self.on_audio_ready = None  # Callback: function(audio_samples)
         logger.info(f"[TONE] Initialized @ {self.sample_rate} Hz")
+
+    def set_tone_pair(self, mark_freq: float, space_freq: float):
+        """Update the paired MARK/SPACE frequencies used by test tones."""
+        self.mark_freq = float(mark_freq)
+        self.space_freq = float(space_freq)
+        logger.info(f"[TONE] Tone pair updated: mark={self.mark_freq} Hz, space={self.space_freq} Hz")
     
     def generate_tone(self, frequency: float, duration_seconds: float) -> np.ndarray:
         """
@@ -59,17 +64,17 @@ class TestToneGenerator:
         return wave
     
     def generate_mark(self, duration_seconds: float = 0.1) -> np.ndarray:
-        """Generate 1200 Hz (MARK) test tone"""
-        return self.generate_tone(self.MARK_FREQ, duration_seconds)
+        """Generate MARK test tone"""
+        return self.generate_tone(self.mark_freq, duration_seconds)
     
     def generate_space(self, duration_seconds: float = 0.1) -> np.ndarray:
-        """Generate 2200 Hz (SPACE) test tone"""
-        return self.generate_tone(self.SPACE_FREQ, duration_seconds)
+        """Generate SPACE test tone"""
+        return self.generate_tone(self.space_freq, duration_seconds)
     
     def generate_both(self, duration_seconds: float = 0.1) -> np.ndarray:
-        """Generate mixed 1200 Hz + 2200 Hz test tone"""
-        mark = self.generate_tone(self.MARK_FREQ, duration_seconds)
-        space = self.generate_tone(self.SPACE_FREQ, duration_seconds)
+        """Generate mixed MARK + SPACE test tone"""
+        mark = self.generate_tone(self.mark_freq, duration_seconds)
+        space = self.generate_tone(self.space_freq, duration_seconds)
         
         # Mix both tones (sum and normalize to avoid clipping)
         mixed = (mark + space) / 2.0

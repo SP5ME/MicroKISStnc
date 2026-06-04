@@ -7,7 +7,7 @@ Set-Location $root
 $python = "f:/GitHub/MicroKISStnc/.venv/Scripts/python.exe"
 $icon = Join-Path $root "Ikona-MicroKISStnc.ico"
 $outputDir = Join-Path $root "build"
-$outputExe = Join-Path $outputDir "MicroKISStnc_v1.exe"
+$outputExe = Join-Path $outputDir "MicroKISStnc_v1.1.0.exe"
 $tempRoot = Join-Path $outputDir "_pyinstaller_tmp"
 $workDir = Join-Path $tempRoot "work"
 $specDir = Join-Path $tempRoot "spec"
@@ -37,7 +37,7 @@ try {
     --clean `
     --windowed `
     --onefile `
-    --name MicroKISStnc_v1 `
+    --name MicroKISStnc_v1.1.0 `
     --icon "$icon" `
     --add-data "$icon;." `
     --distpath "$outputDir" `
@@ -61,4 +61,4 @@ try {
     }
 }
 
-Write-Host "Build complete: build/MicroKISStnc_v1.exe" -ForegroundColor Green
+Write-Host "Build complete: build/MicroKISStnc_v1.1.0.exe" -ForegroundColor Green

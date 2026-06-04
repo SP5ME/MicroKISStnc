@@ -13,20 +13,30 @@ from typing import Callable, Optional, Tuple
 import numpy as np
 from scipy.signal import butter, resample_poly, sosfiltfilt
 
+try:
+    from .modem_factory import ModemFactory, ModemProfile
+except ImportError:  # pragma: no cover - fallback for direct script execution
+    from modem_factory import ModemFactory, ModemProfile
+
 logger = logging.getLogger(__name__)
 
 
 INPUT_FS_DEFAULT = 48000
 DSP_FS = 9600
-BAUD = 1200
-SPS = DSP_FS // BAUD
-MARK_HZ = 1200
-SPACE_HZ = 2200
 FLAG_BITS = "01111110"
+DEFAULT_MODEM_PROFILE = ModemFactory.get_profile(None)
+DEFAULT_BIT_RATE = DEFAULT_MODEM_PROFILE.bit_rate
+DEFAULT_MARK_HZ = DEFAULT_MODEM_PROFILE.rx_mark_hz
+DEFAULT_SPACE_HZ = DEFAULT_MODEM_PROFILE.rx_space_hz
+
+
+def _samples_per_symbol(dsp_fs: int, bit_rate: int) -> int:
+    bit_rate = max(1, int(bit_rate))
+    return max(1, int(dsp_fs // bit_rate))
 
 
 def bandpass_audio(audio, fs, low=700.0, high=2700.0, order=4):
-    """Bandpass filter around Bell 202 tones."""
+    """Bandpass filter around the selected AFSK tones."""
     if len(audio) < 64:
         return audio
 
@@ -67,11 +77,14 @@ def afsk_soft_symbols(
     audio_in,
     input_fs=INPUT_FS_DEFAULT,
     dsp_fs=DSP_FS,
+    bit_rate=DEFAULT_BIT_RATE,
+    mark_hz=DEFAULT_MARK_HZ,
+    space_hz=DEFAULT_SPACE_HZ,
     use_bandpass=False,
     bp_low=700.0,
     bp_high=2700.0,
     bp_order=4,
-    mark_filter_len=SPS,
+    mark_filter_len=None,
     soft_filter_len=None,
 ):
     """Generate soft symbols where >0 is MARK and <0 is SPACE."""
@@ -97,11 +110,17 @@ def afsk_soft_symbols(
     if use_bandpass:
         audio = bandpass_audio(audio, dsp_fs, low=bp_low, high=bp_high, order=bp_order)
 
+    samples_per_symbol = _samples_per_symbol(dsp_fs, bit_rate)
+    if mark_filter_len is None:
+        mark_filter_len = samples_per_symbol
+    if soft_filter_len is None:
+        soft_filter_len = max(2, samples_per_symbol // 2)
+
     n = len(audio)
     t = np.arange(n, dtype=np.float64) / dsp_fs
 
-    mark_osc = np.exp(-1j * 2.0 * np.pi * MARK_HZ * t)
-    space_osc = np.exp(-1j * 2.0 * np.pi * SPACE_HZ * t)
+    mark_osc = np.exp(-1j * 2.0 * np.pi * mark_hz * t)
+    space_osc = np.exp(-1j * 2.0 * np.pi * space_hz * t)
 
     mixed_mark = audio * mark_osc
     mixed_space = audio * space_osc
@@ -113,9 +132,6 @@ def afsk_soft_symbols(
     space_power = np.abs(space_lp) ** 2
 
     soft = mark_power - space_power
-
-    if soft_filter_len is None:
-        soft_filter_len = max(2, SPS // 2)
 
     soft = moving_average_real(soft, soft_filter_len)
     return soft
@@ -377,14 +393,16 @@ def extract_candidates_from_bit_string(bit_string, phase):
     return flags, candidates
 
 
-def decode_soft_to_candidates(soft):
+def decode_soft_to_candidates(soft, bit_rate=DEFAULT_BIT_RATE):
     all_candidates = []
     total_flags = 0
     total_ax25 = 0
     total_ui = 0
 
-    for phase in range(SPS):
-        sampled = soft[phase::SPS]
+    samples_per_symbol = _samples_per_symbol(DSP_FS, bit_rate)
+
+    for phase in range(samples_per_symbol):
+        sampled = soft[phase::samples_per_symbol]
         if len(sampled) < 10:
             continue
 
@@ -435,6 +453,8 @@ class RXPipelineLiveDSP:
         bp_high: float = 2700.0,
         bp_order: int = 4,
         min_score_no_fcs: int = 1200,
+        modem_profile: Optional[ModemProfile] = None,
+        modem_id: Optional[str] = None,
     ):
         self.input_sample_rate = int(sample_rate)
         self.sample_rate = int(sample_rate)  # compatibility alias
@@ -452,6 +472,8 @@ class RXPipelineLiveDSP:
         self.bp_high = bp_high
         self.bp_order = bp_order
         self.min_score_no_fcs = int(min_score_no_fcs)
+        self.modem_profile = modem_profile or ModemFactory.get_profile(modem_id)
+        self.modem_id = self.modem_profile.modem_id
 
         self.samples = deque(maxlen=self.buffer_size)
         self.samples_since_scan = 0
@@ -461,12 +483,18 @@ class RXPipelineLiveDSP:
         self.no_frame_scan_count = 0
 
         logger.info(
-            "[RX-DSP] Initialized @ %d Hz (buffer=%.1fs, scan=%.1fs, fcs=%s)",
+            "[RX-DSP] Initialized @ %d Hz (buffer=%.1fs, scan=%.1fs, fcs=%s, modem=%s)",
             self.input_sample_rate,
             buffer_seconds,
             scan_interval,
             "ON" if self.require_fcs else "OFF",
+            self.modem_profile.summary(),
         )
+
+    def set_modem_profile(self, modem_profile: ModemProfile) -> None:
+        self.modem_profile = modem_profile
+        self.modem_id = modem_profile.modem_id
+        logger.info("[RX-DSP] Modem profile updated to %s", modem_profile.summary())
 
     def _cleanup_seen(self):
         now = time.time()
@@ -552,13 +580,16 @@ class RXPipelineLiveDSP:
             data,
             input_fs=self.input_sample_rate,
             dsp_fs=DSP_FS,
+            bit_rate=self.modem_profile.bit_rate,
+            mark_hz=self.modem_profile.rx_mark_hz,
+            space_hz=self.modem_profile.rx_space_hz,
             use_bandpass=self.use_bandpass,
             bp_low=self.bp_low,
             bp_high=self.bp_high,
             bp_order=self.bp_order,
         )
 
-        candidates, stats = decode_soft_to_candidates(soft)
+        candidates, stats = decode_soft_to_candidates(soft, bit_rate=self.modem_profile.bit_rate)
         frames = self._filter_candidates(candidates)
 
         elapsed_ms = (time.perf_counter() - t0) * 1000.0

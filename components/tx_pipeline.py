@@ -13,9 +13,22 @@ import wave
 import os
 from datetime import datetime
 
-from hdlc_codec import HDLCEncoder
-from afsk_modem import AFSKModulator
-from audio_manager import AudioManager
+try:
+    from .hdlc_codec import HDLCEncoder
+except ImportError:  # pragma: no cover - fallback for direct script execution
+    from hdlc_codec import HDLCEncoder
+
+try:
+    from .audio_manager import AudioManager
+except ImportError:  # pragma: no cover - fallback for direct script execution
+    from audio_manager import AudioManager
+
+try:
+    from .afsk_modem import AFSKModulator
+    from .modem_factory import ModemFactory, ModemProfile
+except ImportError:  # pragma: no cover - fallback for direct script execution
+    from afsk_modem import AFSKModulator
+    from modem_factory import ModemFactory, ModemProfile
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +40,12 @@ class TXPipeline:
     Flow: KISS frame -> HDLC encode -> AFSK modulate -> Audio output
     """
     
-    def __init__(self, audio_manager: AudioManager):
+    def __init__(self, audio_manager: AudioManager, modem_profile: Optional[ModemProfile] = None, modem_id: Optional[str] = None):
         self.audio_manager = audio_manager
         self.input_queue = Queue()  # Receives KISS frames
         self.running = False
         self.thread = None
+        self.modem_profile = modem_profile or ModemFactory.get_profile(modem_id)
         
         # Components
         self.hdlc_encoder = HDLCEncoder()
@@ -58,8 +72,8 @@ class TXPipeline:
         logger.info(f"[TX] Using actual audio device sample rate: {actual_sample_rate} Hz")
         
         # Initialize AFSK modulator with actual sample rate
-        # IMPORTANT: This ensures Bell 202 frequencies are generated with CORRECT phase increments
-        self.afsk_modulator = AFSKModulator(sample_rate=actual_sample_rate)
+        # IMPORTANT: This ensures the selected modem profile uses CORRECT phase increments
+        self.afsk_modulator = AFSKModulator(sample_rate=actual_sample_rate, profile=self.modem_profile)
         
         self.running = True
         self.thread = threading.Thread(target=self._run, daemon=True, name="TXPipeline")
@@ -76,6 +90,12 @@ class TXPipeline:
     def send_kiss_frame(self, kiss_data: bytes):
         """Queue KISS frame for transmission"""
         self.input_queue.put(kiss_data)
+
+    def set_modem_profile(self, modem_profile: ModemProfile) -> None:
+        """Update modem profile used for future transmissions."""
+        self.modem_profile = modem_profile
+        if self.afsk_modulator is not None:
+            self.afsk_modulator.set_profile(modem_profile)
     
     def _run(self):
         """Main TX pipeline loop"""
@@ -128,10 +148,13 @@ class TXPipeline:
             hdlc_bits = self.hdlc_encoder.encode_frame(ax25_data)
             logger.debug(f"[TX] HDLC encoded to {len(hdlc_bits)} bits")
             
-            # Step 2: AFSK modulate (use continuous phase for Bell 202 accuracy)
+            # Step 2: AFSK modulate (use continuous phase for profile accuracy)
             logger.debug(f"[TX] AFSK modulating {len(hdlc_bits)} bits...")
             audio = self.afsk_modulator.modulate_continuous(hdlc_bits, amplitude=0.9)
-            logger.debug(f"[TX] AFSK modulated to {len(audio)} audio samples ({len(audio)/44100:.2f}s)")
+            logger.debug(
+                f"[TX] AFSK modulated to {len(audio)} audio samples "
+                f"({len(audio)/max(1, self.afsk_modulator.sample_rate):.2f}s)"
+            )
             
             # Step 3: Output to audio device
             logger.debug(f"[TX] Sending to audio output...")
@@ -216,7 +239,7 @@ class TXPipeline:
             with wave.open(filename, 'w') as wav_file:
                 wav_file.setnchannels(1)  # Mono
                 wav_file.setsampwidth(2)  # 16-bit
-                wav_file.setframerate(44100)
+                wav_file.setframerate(int(self.afsk_modulator.sample_rate) if self.afsk_modulator else 44100)
                 wav_file.writeframes(audio_int16.tobytes())
             
             logger.info(f"[TX] Audio saved to {filename}")

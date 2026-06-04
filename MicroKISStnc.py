@@ -42,6 +42,7 @@ from components.kiss_server_app import KISSServerApp
 from components.rx_pipeline_live_dsp import RXPipelineLiveDSP as RXPipeline
 from components.hdlc_codec import HDLCEncoder
 from components.afsk_modem import AFSKModulator
+from components.modem_factory import ModemFactory, ModemProfile
 from components.system_volume import SystemVolumeMonitor
 from components.web_control_server import WebControlServer
 
@@ -247,6 +248,7 @@ class MicroKISStnc(QMainWindow):
             "select_speaker": "-- Select Speaker --",
             "signal_level": "Signal Level:",
             "test_tones": "Test Tones:",
+            "modem_profile": "Modem profile:",
             "both": "Both",
             "ptt_group": "PTT CONTROL",
             "ptt_type": "PTT Type:",
@@ -588,6 +590,7 @@ class MicroKISStnc(QMainWindow):
         self.ax25_local_callsign = str(self.config.get("ax25.local_callsign", "N0CALL-1") or "N0CALL-1").upper()
         self.ax25_l2_enabled = bool(self.config.get("ax25.l2_enabled", True))
         self.ax25_l2_sessions: Dict[str, Dict[str, int]] = {}
+        self.modem_profile = self._resolve_modem_profile(self.config.get("modem.modem_id", ModemFactory.DEFAULT_MODEM_ID))
         self.audio_monitor_in = AudioMonitor()
         self.audio_monitor_out = AudioMonitor()
         self.tone_gen = TestToneGenerator(sample_rate=44100)  # Initialize with default rate
@@ -717,6 +720,7 @@ class MicroKISStnc(QMainWindow):
             require_fcs=True,
             use_bandpass=True,
             rms_gate=0.003,
+            modem_profile=self.modem_profile,
         )
         self.rx_pipeline_lock = threading.Lock()
 
@@ -731,6 +735,7 @@ class MicroKISStnc(QMainWindow):
         
         # Setup UI
         self.init_ui()
+        self._apply_modem_profile(self.modem_profile.modem_id, persist=False)
         self._apply_app_icon()
         self.restore_geometry()
         
@@ -893,8 +898,9 @@ class MicroKISStnc(QMainWindow):
             self.label_out_signal.setText(self._t("signal_level"))
         if hasattr(self, "label_test_tones"):
             self.label_test_tones.setText(self._t("test_tones"))
-        if hasattr(self, "btn_tone_both"):
-            self.btn_tone_both.setText(self._t("both"))
+        if hasattr(self, "label_modem_profile"):
+            self.label_modem_profile.setText(self._t("modem_profile"))
+        self._update_tone_button_labels()
         if hasattr(self, "section_ptt"):
             self.section_ptt.setTitle(self._t("ptt_group"))
         if hasattr(self, "label_ptt_type"):
@@ -1042,6 +1048,85 @@ class MicroKISStnc(QMainWindow):
         if v in ("advanced", "adv", "pro"):
             return "advanced"
         return "basic"
+
+    def _resolve_modem_profile(self, modem_id: Optional[str] = None) -> ModemProfile:
+        """Return a known modem profile, falling back to Bell 202."""
+        return ModemFactory.get_profile(modem_id)
+
+    def _save_modem_config(self) -> None:
+        """Persist modem profile selection."""
+        self.config.set("modem.modem_id", self.modem_profile.modem_id)
+        self.config.save()
+
+    def _update_modem_profile_hint(self) -> None:
+        """Update short info text for the selected modem profile."""
+        if not hasattr(self, "label_modem_profile_hint"):
+            return
+        self.label_modem_profile_hint.setText(self.modem_profile.summary())
+
+    def _update_tone_button_labels(self) -> None:
+        """Update test-tone button captions for the active modem profile."""
+        if not hasattr(self, "btn_tone_1200"):
+            return
+
+        tone_pairs = sorted(
+            (
+                (float(self.modem_profile.tx_mark_hz), "1200"),
+                (float(self.modem_profile.tx_space_hz), "2200"),
+            ),
+            key=lambda item: item[0],
+        )
+
+        low_hz, low_kind = tone_pairs[0]
+        high_hz, high_kind = tone_pairs[1]
+        self._tone_left_kind = low_kind
+        self._tone_right_kind = high_kind
+
+        self.btn_tone_1200.setText(f"{int(round(low_hz))} Hz")
+        self.btn_tone_2200.setText(f"{int(round(high_hz))} Hz")
+        self.btn_tone_both.setText(f"{self._t('both')} {int(round(low_hz))}/{int(round(high_hz))}")
+
+    def _tone_kind_for_slot(self, slot: str) -> str:
+        """Map a UI slot ('left' or 'right') to the active tone generator kind."""
+        if slot == "right":
+            return str(getattr(self, "_tone_right_kind", "2200"))
+        return str(getattr(self, "_tone_left_kind", "1200"))
+
+    def _apply_modem_profile(self, modem_id: str, persist: bool = True) -> None:
+        """Apply modem profile to RX/TX paths and refresh related UI."""
+        profile = self._resolve_modem_profile(modem_id)
+        self.modem_profile = profile
+
+        if hasattr(self, "combo_modem_profile"):
+            self.combo_modem_profile.blockSignals(True)
+            self._set_combo_by_data(self.combo_modem_profile, profile.modem_id)
+            self.combo_modem_profile.blockSignals(False)
+
+        if hasattr(self, "rx_pipeline") and self.rx_pipeline is not None:
+            try:
+                self.rx_pipeline.set_modem_profile(profile)
+            except Exception as e:
+                logger.warning(f"[MODEM] Could not update RX pipeline profile: {e}")
+
+        if hasattr(self, "tone_gen") and self.tone_gen is not None:
+            try:
+                self.tone_gen.set_tone_pair(profile.tx_mark_hz, profile.tx_space_hz)
+            except Exception as e:
+                logger.warning(f"[MODEM] Could not update tone generator profile: {e}")
+
+        if persist:
+            self._save_modem_config()
+
+        self._update_tone_button_labels()
+        self._update_modem_profile_hint()
+        self._update_monitor_config_summary()
+
+    def on_modem_profile_changed(self, _index: int) -> None:
+        """Persist modem selection from the GUI."""
+        if not hasattr(self, "combo_modem_profile"):
+            return
+        modem_id = self.combo_modem_profile.currentData() or ModemFactory.DEFAULT_MODEM_ID
+        self._apply_modem_profile(str(modem_id), persist=True)
 
     def _state_to_bool(self, state: str) -> Optional[bool]:
         """Convert Hamlib-style line state string to optional bool."""
@@ -1272,10 +1357,11 @@ class MicroKISStnc(QMainWindow):
 
         audio_in = self._monitor_summary_combo_text("combo_input")
         audio_out = self._monitor_summary_combo_text("combo_output")
+        modem = self.modem_profile.summary() if hasattr(self, "modem_profile") else "unknown"
         ptt = self._normalize_ptt_type(self.ptt_type or "VOX")
         kiss = str(int(self.kiss_port))
         web = str(WEB_UI_PORT) if bool(self.web_ui_enabled) else "OFF"
-        summary = f"Audio in: {audio_in}   Audio out: {audio_out}   PTT: {ptt}   KISS: {kiss}   Web: {web}"
+        summary = f"Audio in: {audio_in}   Audio out: {audio_out}   Modem: {modem}   PTT: {ptt}   KISS: {kiss}   Web: {web}"
         self.label_monitor_config_summary.setText(summary)
 
     def _on_kiss_port_changed(self, value: int) -> None:
@@ -1753,7 +1839,23 @@ class MicroKISStnc(QMainWindow):
         self.combo_output.addItem(self._t("select_speaker"), None)
         self.combo_output.currentIndexChanged.connect(self.on_output_device_changed)
         layout.addWidget(self.combo_output)
-        
+
+        modem_row = QHBoxLayout()
+        self.label_modem_profile = QLabel(self._t("modem_profile"))
+        modem_row.addWidget(self.label_modem_profile)
+        self.combo_modem_profile = QComboBox()
+        for profile in ModemFactory.list_profiles():
+            self.combo_modem_profile.addItem(profile.label, profile.modem_id)
+        self._set_combo_by_data(self.combo_modem_profile, self.modem_profile.modem_id)
+        self.combo_modem_profile.currentIndexChanged.connect(self.on_modem_profile_changed)
+        modem_row.addWidget(self.combo_modem_profile)
+        modem_row.addStretch()
+        layout.addLayout(modem_row)
+
+        self.label_modem_profile_hint = QLabel("")
+        self.label_modem_profile_hint.setStyleSheet("color: gray;")
+        layout.addWidget(self.label_modem_profile_hint)
+
         # Sample Rate selection is kept internally for compatibility but hidden in GUI.
         self.combo_sample_rate = ClickSelectComboBox()
         self.combo_sample_rate.addItems(["44100", "48000", "96000"])
@@ -1779,7 +1881,7 @@ class MicroKISStnc(QMainWindow):
         self.btn_tone_1200 = QPushButton("1200 Hz")
         self.btn_tone_1200.setCheckable(True)
         self.btn_tone_1200.setFixedHeight(34)
-        self.btn_tone_1200.setFixedWidth(120)
+        self.btn_tone_1200.setFixedWidth(140)
         self.btn_tone_1200.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.btn_tone_1200.clicked.connect(self.toggle_tone_1200)
         tone_layout.addStretch()
@@ -1788,7 +1890,7 @@ class MicroKISStnc(QMainWindow):
         self.btn_tone_both = QPushButton(self._t("both"))
         self.btn_tone_both.setCheckable(True)
         self.btn_tone_both.setFixedHeight(34)
-        self.btn_tone_both.setFixedWidth(120)
+        self.btn_tone_both.setFixedWidth(140)
         self.btn_tone_both.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.btn_tone_both.clicked.connect(self.toggle_tone_both)
         tone_layout.addWidget(self.btn_tone_both)
@@ -1796,7 +1898,7 @@ class MicroKISStnc(QMainWindow):
         self.btn_tone_2200 = QPushButton("2200 Hz")
         self.btn_tone_2200.setCheckable(True)
         self.btn_tone_2200.setFixedHeight(34)
-        self.btn_tone_2200.setFixedWidth(120)
+        self.btn_tone_2200.setFixedWidth(140)
         self.btn_tone_2200.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.btn_tone_2200.clicked.connect(self.toggle_tone_2200)
         tone_layout.addWidget(self.btn_tone_2200)
@@ -1804,6 +1906,8 @@ class MicroKISStnc(QMainWindow):
         
         layout.addLayout(tone_layout)
         layout.addSpacing(8)
+
+        self._update_tone_button_labels()
         
         group.setLayout(layout)
         return group
@@ -2524,16 +2628,16 @@ class MicroKISStnc(QMainWindow):
                 self.btn_ptt_test.blockSignals(False)
     
     def toggle_tone_1200(self):
-        """Toggle 1200 Hz test tone"""
-        self._toggle_tone_button(self.btn_tone_1200, "1200")
+        """Toggle left-side test tone (lower frequency)."""
+        self._toggle_tone_button(self.btn_tone_1200, self._tone_kind_for_slot("left"))
     
     def toggle_tone_both(self):
         """Toggle Both test tones"""
         self._toggle_tone_button(self.btn_tone_both, "both")
     
     def toggle_tone_2200(self):
-        """Toggle 2200 Hz test tone"""
-        self._toggle_tone_button(self.btn_tone_2200, "2200")
+        """Toggle right-side test tone (higher frequency)."""
+        self._toggle_tone_button(self.btn_tone_2200, self._tone_kind_for_slot("right"))
     
     def _toggle_tone_button(self, clicked_button, tone_type: str):
         """
@@ -2854,6 +2958,8 @@ class MicroKISStnc(QMainWindow):
 
         device_sample_rate = self.actual_output_sample_rate
         logger.info(f"[TX/{tx_tag}] Using actual_output_sample_rate: {device_sample_rate} Hz")
+        modem_profile = self.modem_profile if hasattr(self, "modem_profile") else ModemFactory.get_profile(None)
+        logger.info(f"[TX/{tx_tag}] Using modem profile: {modem_profile.summary()}")
 
         frame_bits = self.hdlc_encoder.encode_frame(frame_data)
         tx_delay_ms = self._get_tx_delay_ms()
@@ -2870,7 +2976,7 @@ class MicroKISStnc(QMainWindow):
         postamble_bits = self.hdlc_encoder.generate_preamble(num_flags=postamble_flags) if postamble_flags > 0 else []
         full_bits = preamble_bits + frame_bits + postamble_bits
 
-        afsk_mod = AFSKModulator(sample_rate=device_sample_rate)
+        afsk_mod = AFSKModulator(sample_rate=device_sample_rate, profile=modem_profile)
         tx_amp = float(getattr(self, "current_tx_amplitude", 0.9))
         tx_amp = max(0.5, min(1.0, tx_amp))
         audio_data = afsk_mod.modulate_continuous(full_bits, amplitude=tx_amp)
@@ -3818,6 +3924,7 @@ class MicroKISStnc(QMainWindow):
                                 require_fcs=True,
                                 use_bandpass=True,
                                 rms_gate=0.003,
+                                modem_profile=self.modem_profile,
                             )
                             logger.info(f"[RX] RX pipeline now uses {self.actual_input_sample_rate} Hz (prevents frequency shift)")
 
@@ -4944,6 +5051,7 @@ class MicroKISStnc(QMainWindow):
         input_name = self.combo_input.currentText() if hasattr(self, "combo_input") else ""
         output_name = self.combo_output.currentText() if hasattr(self, "combo_output") else ""
         sample_rate = self.combo_sample_rate.currentText() if hasattr(self, "combo_sample_rate") else "44100"
+        modem_profile = self.modem_profile if hasattr(self, "modem_profile") else ModemFactory.get_profile(None)
         ptt_mode = self.combo_ppt.currentText() if hasattr(self, "combo_ppt") else self.ptt_type
 
         tone_active = ""
@@ -4978,6 +5086,9 @@ class MicroKISStnc(QMainWindow):
             "web_enabled": bool(self.web_ui_enabled),
             "sample_rate": int(sample_rate) if str(sample_rate).isdigit() else sample_rate,
             "sample_rates": ["44100", "48000", "96000"],
+            "modem_id": modem_profile.modem_id,
+            "modem_label": modem_profile.label,
+            "modems": [profile.modem_id for profile in ModemFactory.list_profiles()],
             "ptt_mode": ptt_mode,
             "ptt_type": self.ptt_type,
             "ptt_path": ptt_path,
