@@ -36,7 +36,7 @@ class ModemFactory:
     _PROFILES: Dict[str, ModemProfile] = {
         "bell202_1200": ModemProfile(
             modem_id="bell202_1200",
-            label="Bell 202 / AFSK1200",
+            label="1200 bd (VHF/UHF)",
             modulation="afsk",
             bit_rate=1200,
             tx_mark_hz=1200,
@@ -47,7 +47,7 @@ class ModemFactory:
         ),
         "hf_aprs_300_soundmodem": ModemProfile(
             modem_id="hf_aprs_300_soundmodem",
-            label="HF APRS 300 baud",
+            label="300 bd (HF)",
             modulation="afsk",
             bit_rate=300,
             tx_mark_hz=1800,

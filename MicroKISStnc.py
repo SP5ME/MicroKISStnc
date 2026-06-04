@@ -31,6 +31,7 @@ from PyQt6.QtWidgets import (
     QGroupBox, QLabel, QComboBox, QPushButton, QCheckBox,
     QSpinBox, QProgressBar, QTextEdit, QHBoxLayout, QMessageBox, QLineEdit,
     QScrollArea, QGridLayout, QSizePolicy, QSystemTrayIcon, QMenu, QStackedWidget, QTabWidget,
+    QDialog,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QAction, QFont, QWheelEvent, QIcon, QFontMetrics
@@ -129,6 +130,10 @@ class ClickSelectComboBox(QComboBox):
             super().wheelEvent(event)
             return
         event.ignore()
+
+
+# Make the safe combo box the default used across this UI module.
+QComboBox = ClickSelectComboBox
 
 
 class StartupAbortError(RuntimeError):
@@ -249,6 +254,7 @@ class MicroKISStnc(QMainWindow):
             "signal_level": "Signal Level:",
             "test_tones": "Test Tones:",
             "modem_profile": "Modem profile:",
+            "frequencies": "Frequencies",
             "both": "Both",
             "ptt_group": "PTT CONTROL",
             "ptt_type": "PTT Type:",
@@ -511,6 +517,8 @@ class MicroKISStnc(QMainWindow):
             "signal_level": "Poziom sygnału:",
             "test_tones": "Tony testowe:",
             "both": "Oba",
+            "modem_profile": "Profil modemu:",
+            "frequencies": "Częstotliwości",
             "ptt_group": "KONTROLA PTT",
             "ptt_type": "Typ PTT:",
             "ptt_desc": "(RIG/CAT, DTR, RTS, VOX) - model Hamlib",
@@ -900,6 +908,9 @@ class MicroKISStnc(QMainWindow):
             self.label_test_tones.setText(self._t("test_tones"))
         if hasattr(self, "label_modem_profile"):
             self.label_modem_profile.setText(self._t("modem_profile"))
+        if hasattr(self, "btn_modem_frequencies"):
+            self.btn_modem_frequencies.setText(self._t("frequencies"))
+            self.btn_modem_frequencies.setToolTip(self._t("frequencies"))
         self._update_tone_button_labels()
         if hasattr(self, "section_ptt"):
             self.section_ptt.setTitle(self._t("ptt_group"))
@@ -1063,6 +1074,58 @@ class MicroKISStnc(QMainWindow):
         if not hasattr(self, "label_modem_profile_hint"):
             return
         self.label_modem_profile_hint.setText(self.modem_profile.summary())
+
+    def _modem_frequency_help_html(self, profile: ModemProfile) -> str:
+        """Return an HTML help table for the selected modem profile frequencies."""
+        rows = [
+            ("APRS VHF", "144.800 MHz", "144.390 MHz", False),
+            ("APRS UHF", "432.500 MHz", "445.925 MHz", False),
+            ("APRS HF (30 m, USB)", "10.147 600 MHz", "10.147 600 MHz", True),
+        ]
+
+        table_rows = []
+        for mode, eu, us, merge_hf in rows:
+            if merge_hf:
+                table_rows.append(
+                    "<tr>"
+                    f"<td>{mode}</td>"
+                    f"<td colspan='2' style='text-align:center;'><b>{eu}</b></td>"
+                    "</tr>"
+                )
+            else:
+                table_rows.append(
+                    "<tr>"
+                    f"<td>{mode}</td>"
+                    f"<td><b>{eu}</b></td>"
+                    f"<td><b>{us}</b></td>"
+                    "</tr>"
+                )
+        return (
+            "<html><body>"
+            "<table border='1' cellspacing='0' cellpadding='6' style='width:100%; border-collapse:collapse; text-align:center;'>"
+            "<tr><th>Tryb</th><th>EU</th><th>US</th></tr>"
+            f"{''.join(table_rows)}"
+            "</table>"
+            "</body></html>"
+        )
+
+    def _show_modem_frequencies(self) -> None:
+        """Show frequency reference for the selected modem profile."""
+        profile = self.modem_profile if hasattr(self, "modem_profile") else ModemFactory.get_profile(None)
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self._t("frequencies"))
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(0)
+
+        label = QLabel(self._modem_frequency_help_html(profile))
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        layout.addWidget(label)
+
+        dialog.adjustSize()
+        dialog.exec()
 
     def _update_tone_button_labels(self) -> None:
         """Update test-tone button captions for the active modem profile."""
@@ -1849,6 +1912,10 @@ class MicroKISStnc(QMainWindow):
         self._set_combo_by_data(self.combo_modem_profile, self.modem_profile.modem_id)
         self.combo_modem_profile.currentIndexChanged.connect(self.on_modem_profile_changed)
         modem_row.addWidget(self.combo_modem_profile)
+        self.btn_modem_frequencies = QPushButton(self._t("frequencies"))
+        self.btn_modem_frequencies.setToolTip(self._t("frequencies"))
+        self.btn_modem_frequencies.clicked.connect(self._show_modem_frequencies)
+        modem_row.addWidget(self.btn_modem_frequencies)
         modem_row.addStretch()
         layout.addLayout(modem_row)
 
