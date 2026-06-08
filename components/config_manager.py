@@ -7,6 +7,7 @@ Handles loading/saving settings to JSON config file
 import json
 import os
 import logging
+from copy import deepcopy
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -27,6 +28,9 @@ class ConfigManager:
             "output_device": None,  # Will auto-detect
             "sample_rate": 44100,
             "channels": 1,
+        },
+        "modem": {
+            "modem_id": "bell202_1200",
         },
         "ptt": {
             "mode": "disabled",  # disabled, vox, COM1, COM2, etc.
@@ -52,7 +56,7 @@ class ConfigManager:
     
     def __init__(self):
         """Initialize config manager and load existing config"""
-        self.config = self.DEFAULT_CONFIG.copy()
+        self.config = deepcopy(self.DEFAULT_CONFIG)
         self._ensure_config_dir()
         self._load_config()
     
@@ -75,10 +79,10 @@ class ConfigManager:
                 logger.info(f"[CONFIG] Loaded from {self.CONFIG_FILE}")
             else:
                 logger.info(f"[CONFIG] No config file found, using defaults")
-                self.config = self.DEFAULT_CONFIG.copy()
+                self.config = deepcopy(self.DEFAULT_CONFIG)
         except Exception as e:
             logger.error(f"[CONFIG] Error loading config: {e}")
-            self.config = self.DEFAULT_CONFIG.copy()
+            self.config = deepcopy(self.DEFAULT_CONFIG)
     
     def save(self):
         """Save configuration to JSON file"""
@@ -143,7 +147,7 @@ class ConfigManager:
     
     def reset_to_defaults(self):
         """Reset configuration to defaults"""
-        self.config = self.DEFAULT_CONFIG.copy()
+        self.config = deepcopy(self.DEFAULT_CONFIG)
         self.save()
         logger.info("[CONFIG] Reset to defaults")
 

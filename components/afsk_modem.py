@@ -1,17 +1,19 @@
 """
-AFSK (Audio Frequency Shift Keying) Modulator/Demodulator
-- 1200 bps APRS standard (VHF/UHF)
-- Mark (1): 1200 Hz
-- Space (0): 2200 Hz
-- Sample rate: 44100 Hz
+AFSK (Audio Frequency Shift Keying) Modulator/Demodulator.
 
-Based on Direwolf's demod_afsk.c
+Uses selectable modem profiles so the same implementation can cover Bell 202
+and HF APRS 300 baud AFSK variants.
 """
 
 import math
 import numpy as np
 import logging
-from typing import List, Tuple
+from typing import List, Optional, Tuple
+
+try:
+    from .modem_factory import ModemFactory, ModemProfile
+except ImportError:  # pragma: no cover - fallback for direct script execution
+    from modem_factory import ModemFactory, ModemProfile
 
 logger = logging.getLogger(__name__)
 
@@ -20,34 +22,33 @@ class AFSKModulator:
     """
     Converts HDLC bitstream to audio samples (AFSK)
     
-    Configuration:
-    - Bit rate: 1200 bps
-    - Mark frequency (1): 1200 Hz
-    - Space frequency (0): 2200 Hz
-    - Sample rate: 44100 Hz
+    Configuration is supplied by a modem profile.
     """
     
-    # Configuration constants
-    BIT_RATE = 1200          # bits per second
-    MARK_FREQ = 1200         # Hz (bit = 1)
-    SPACE_FREQ = 2200        # Hz (bit = 0)
-    SAMPLE_RATE = 44100      # Hz
-    
-    def __init__(self, sample_rate: int = 44100):
+    def __init__(
+        self,
+        sample_rate: int = 44100,
+        profile: Optional[ModemProfile] = None,
+        modem_id: Optional[str] = None,
+    ):
+        self.profile = profile or ModemFactory.get_profile(modem_id)
         self.sample_rate = sample_rate
-        self.samples_per_bit_int = sample_rate // self.BIT_RATE
-        self.samples_per_bit_float = sample_rate / self.BIT_RATE  # EXACT (not rounded down)
+        self.bit_rate = int(self.profile.bit_rate)
+        self.mark_freq = float(self.profile.tx_mark_hz)
+        self.space_freq = float(self.profile.tx_space_hz)
+        self.samples_per_bit_int = sample_rate // self.bit_rate
+        self.samples_per_bit_float = sample_rate / self.bit_rate  # EXACT (not rounded down)
         
         # Calculate phase increments per sample for each frequency
         # CRITICAL: These must be recalculated for EACH sample rate!
-        self.phase_inc_mark = 2.0 * math.pi * self.MARK_FREQ / self.sample_rate
-        self.phase_inc_space = 2.0 * math.pi * self.SPACE_FREQ / self.sample_rate
+        self.phase_inc_mark = 2.0 * math.pi * self.mark_freq / self.sample_rate
+        self.phase_inc_space = 2.0 * math.pi * self.space_freq / self.sample_rate
         
-        logger.info(f"[AFSK] Initialized @ {sample_rate} Hz")
+        logger.info(f"[AFSK] Initialized @ {sample_rate} Hz using {self.profile.summary()}")
         logger.info(f"[AFSK]   - Exact samples_per_bit: {self.samples_per_bit_float:.3f}")
         logger.info(f"[AFSK]   - Integer samples_per_bit: {self.samples_per_bit_int}")
-        logger.info(f"[AFSK]   - Mark freq: {self.MARK_FREQ} Hz")
-        logger.info(f"[AFSK]   - Space freq: {self.SPACE_FREQ} Hz")
+        logger.info(f"[AFSK]   - Mark freq: {self.mark_freq} Hz")
+        logger.info(f"[AFSK]   - Space freq: {self.space_freq} Hz")
         logger.info(f"[AFSK]   - Mark phase_inc: {self.phase_inc_mark:.8f} rad/sample")
         logger.info(f"[AFSK]   - Space phase_inc: {self.phase_inc_space:.8f} rad/sample")
         
@@ -55,12 +56,22 @@ class AFSKModulator:
         # freq = phase_inc * sample_rate / (2*pi)
         mark_check = self.phase_inc_mark * self.sample_rate / (2.0 * math.pi)
         space_check = self.phase_inc_space * self.sample_rate / (2.0 * math.pi)
-        logger.info(f"[AFSK] VERIFICATION: Mark phase_inc produces {mark_check:.1f} Hz (expected {self.MARK_FREQ})")
-        logger.info(f"[AFSK] VERIFICATION: Space phase_inc produces {space_check:.1f} Hz (expected {self.SPACE_FREQ})")
+        logger.info(f"[AFSK] VERIFICATION: Mark phase_inc produces {mark_check:.1f} Hz (expected {self.mark_freq})")
+        logger.info(f"[AFSK] VERIFICATION: Space phase_inc produces {space_check:.1f} Hz (expected {self.space_freq})")
     
     def _precalc_sine_waves(self):
         """DEPRECATED: Do not use pre-calculated sine waves - generate dynamically instead!"""
         pass
+
+    def set_profile(self, profile: ModemProfile) -> None:
+        self.profile = profile
+        self.bit_rate = int(profile.bit_rate)
+        self.mark_freq = float(profile.tx_mark_hz)
+        self.space_freq = float(profile.tx_space_hz)
+        self.samples_per_bit_int = self.sample_rate // self.bit_rate
+        self.samples_per_bit_float = self.sample_rate / self.bit_rate
+        self.phase_inc_mark = 2.0 * math.pi * self.mark_freq / self.sample_rate
+        self.phase_inc_space = 2.0 * math.pi * self.space_freq / self.sample_rate
     
     def modulate(self, bits: List[int], amplitude: float = 0.5) -> np.ndarray:
         """
@@ -84,9 +95,9 @@ class AFSKModulator:
         for bit in bits:
             # Select frequency based on bit (restarts phase each bit - discontinuous)
             if bit == 1:
-                freq = self.MARK_FREQ
+                freq = self.mark_freq
             else:
-                freq = self.SPACE_FREQ
+                freq = self.space_freq
             
             phase_inc = 2.0 * math.pi * freq / self.sample_rate
             
@@ -110,7 +121,7 @@ class AFSKModulator:
         CRITICAL: Implements NRZI encoding:
         - Input bit 1: no state change
         - Input bit 0: state change (invert)
-        - Output state (0 or 1) determines frequency: 0=SPACE (2200 Hz), 1=MARK (1200 Hz)
+        - Output state (0 or 1) determines frequency: 0=SPACE, 1=MARK
         
         CRITICAL: Accumulates fractional samples (36.75) for exact baud rate
         
@@ -126,7 +137,7 @@ class AFSKModulator:
         sample_accumulator = 0.0  # Accumulate fractional samples for exact baud rate
         
         # NRZI state machine
-        nrzi_state = 1  # Start at MARK (1200 Hz) - idle state
+        nrzi_state = 1  # Start at MARK (idle state)
         
         for bit in bits:
             # NRZI encoding: determine output state based on input bit
@@ -136,7 +147,7 @@ class AFSKModulator:
             # else: 1 bit keeps nrzi_state unchanged
             
             # Select frequency based on NRZI output state
-            freq = self.MARK_FREQ if nrzi_state == 1 else self.SPACE_FREQ
+            freq = self.mark_freq if nrzi_state == 1 else self.space_freq
             phase_inc = 2.0 * math.pi * freq / self.sample_rate
             
             # Accumulate samples for this bit (36.75 on average)
@@ -175,14 +186,20 @@ class AFSKDemodulator:
     - Bit synchronization verification
     """
     
-    BIT_RATE = 1200
-    MARK_FREQ = 1200
-    SPACE_FREQ = 2200
-    
-    def __init__(self, sample_rate: int = 44100, use_nrzi: bool = False):
+    def __init__(
+        self,
+        sample_rate: int = 44100,
+        use_nrzi: bool = False,
+        profile: Optional[ModemProfile] = None,
+        modem_id: Optional[str] = None,
+    ):
+        self.profile = profile or ModemFactory.get_profile(modem_id)
         self.sample_rate = sample_rate
-        self.samples_per_bit = sample_rate // self.BIT_RATE  # Integer for indexing (36 @ 44100Hz)
-        self.samples_per_bit_exact = sample_rate / self.BIT_RATE  # Float for precision (36.75 @ 44100Hz)
+        self.bit_rate = int(self.profile.bit_rate)
+        self.mark_freq = float(self.profile.rx_mark_hz)
+        self.space_freq = float(self.profile.rx_space_hz)
+        self.samples_per_bit = sample_rate // self.bit_rate  # Integer for indexing
+        self.samples_per_bit_exact = sample_rate / self.bit_rate  # Float for precision
         self.use_nrzi = use_nrzi  # NRZI: transitions=0, no-transitions=1
         self._calc_goertzel_coeff()
         
@@ -205,7 +222,7 @@ class AFSKDemodulator:
         self.min_level = 0.001
         self.max_level = 0.8  # Target maximum level
         
-        logger.info(f"[AFSK-DEMOD] Initialized: {self.samples_per_bit} samples/bit @ {sample_rate} Hz")
+        logger.info(f"[AFSK-DEMOD] Initialized: {self.samples_per_bit} samples/bit @ {sample_rate} Hz using {self.profile.summary()}")
         logger.info(f"[AFSK-DEMOD] Hysteresis: ±{self.hysteresis*100:.1f}%")
         logger.info(f"[AFSK-DEMOD] Carrier threshold: {self.carrier_threshold:.4f}")
         logger.info(f"[AFSK-DEMOD] AGC enabled (window={self.agc_window})")
@@ -215,8 +232,8 @@ class AFSKDemodulator:
         # Goertzel coefficient: k = N * f / sample_rate
         # where N = samples_per_bit
         
-        k_mark = self.samples_per_bit * self.MARK_FREQ / self.sample_rate
-        k_space = self.samples_per_bit * self.SPACE_FREQ / self.sample_rate
+        k_mark = self.samples_per_bit * self.mark_freq / self.sample_rate
+        k_space = self.samples_per_bit * self.space_freq / self.sample_rate
         
         # w = 2 * pi * k / N
         w_mark = 2.0 * math.pi * k_mark / self.samples_per_bit
@@ -225,6 +242,15 @@ class AFSKDemodulator:
         # Goertzel coefficient: 2 * cos(w)
         self.coeff_mark = 2.0 * math.cos(w_mark)
         self.coeff_space = 2.0 * math.cos(w_space)
+
+    def set_profile(self, profile: ModemProfile) -> None:
+        self.profile = profile
+        self.bit_rate = int(profile.bit_rate)
+        self.mark_freq = float(profile.rx_mark_hz)
+        self.space_freq = float(profile.rx_space_hz)
+        self.samples_per_bit = self.sample_rate // self.bit_rate
+        self.samples_per_bit_exact = self.sample_rate / self.bit_rate
+        self._calc_goertzel_coeff()
     
     def preprocess_agc(self, audio: np.ndarray) -> np.ndarray:
         """
@@ -397,8 +423,8 @@ class AFSKDemodulator:
             bit_samples = processed_audio[start:end]
             
             # Detect which tone (using energy method)
-            mark_energy = self._detect_tone(bit_samples, self.MARK_FREQ)
-            space_energy = self._detect_tone(bit_samples, self.SPACE_FREQ)
+            mark_energy = self._detect_tone(bit_samples, self.mark_freq)
+            space_energy = self._detect_tone(bit_samples, self.space_freq)
             
             # Normalize by total energy to account for signal level variations
             total_energy = mark_energy + space_energy
@@ -513,7 +539,7 @@ if __name__ == "__main__":
     # Create modulator
     modulator = AFSKModulator()
     
-    # Test bits (1200 bps, so 1200 samples/bit)
+    # Test bits (default Bell 202 profile)
     test_bits = [1, 0, 1, 1, 0, 0, 1, 0] * 10  # Repeat pattern
     
     # Modulate

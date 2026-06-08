@@ -31,6 +31,7 @@ from PyQt6.QtWidgets import (
     QGroupBox, QLabel, QComboBox, QPushButton, QCheckBox,
     QSpinBox, QProgressBar, QTextEdit, QHBoxLayout, QMessageBox, QLineEdit,
     QScrollArea, QGridLayout, QSizePolicy, QSystemTrayIcon, QMenu, QStackedWidget, QTabWidget,
+    QDialog,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QAction, QFont, QWheelEvent, QIcon, QFontMetrics
@@ -42,6 +43,7 @@ from components.kiss_server_app import KISSServerApp
 from components.rx_pipeline_live_dsp import RXPipelineLiveDSP as RXPipeline
 from components.hdlc_codec import HDLCEncoder
 from components.afsk_modem import AFSKModulator
+from components.modem_factory import ModemFactory, ModemProfile
 from components.system_volume import SystemVolumeMonitor
 from components.web_control_server import WebControlServer
 
@@ -128,6 +130,10 @@ class ClickSelectComboBox(QComboBox):
             super().wheelEvent(event)
             return
         event.ignore()
+
+
+# Make the safe combo box the default used across this UI module.
+QComboBox = ClickSelectComboBox
 
 
 class StartupAbortError(RuntimeError):
@@ -217,7 +223,7 @@ class MicroKISStnc(QMainWindow):
             "language": "Language",
             "kiss_port": "KISS port:",
             "audio_tab": "Audio",
-            "ptt_control_tab": "PTT Control",
+            "ptt_control_tab": "PTT",
             "delay_group": "Delay",
             "created_by": "Created by SP5ME",
             "config_subtitle": "Basic settings",
@@ -226,6 +232,9 @@ class MicroKISStnc(QMainWindow):
             "advanced_mode": "Advanced",
             "basic_tab": "Basic",
             "net_config": "Net Config",
+            "modem_profile_section": "Modem profile",
+            "kiss_network_group": "KISS port",
+            "web_interface_group": "Web interface",
             "main_tab_monitor": "Monitor",
             "main_tab_config": "Configuration",
             "main_tab_about": "About",
@@ -234,6 +243,8 @@ class MicroKISStnc(QMainWindow):
             "about_build": "Build:",
             "about_kiss": "KISS server:",
             "about_web": "Web UI:",
+            "local_web": "Local web:",
+            "remote_web": "LAN web:",
             "web_enabled": "Web interface enabled",
             "allowed_addresses": "Allowed addresses",
             "allowed_placeholder": "0.0.0.0, 192.168.1.20 or 192.168.1.0/24",
@@ -247,6 +258,8 @@ class MicroKISStnc(QMainWindow):
             "select_speaker": "-- Select Speaker --",
             "signal_level": "Signal Level:",
             "test_tones": "Test Tones:",
+            "modem_profile": "Modem profile:",
+            "frequencies": "Frequencies",
             "both": "Both",
             "ptt_group": "PTT CONTROL",
             "ptt_type": "PTT Type:",
@@ -307,7 +320,7 @@ class MicroKISStnc(QMainWindow):
         },
         "de": {
             "hide_to_tray": "In Tray minimieren", "language": "Sprache", "kiss_port": "KISS-Port:",
-            "audio_tab": "Audio", "ptt_control_tab": "PTT Control",
+            "audio_tab": "Audio", "ptt_control_tab": "PTT",
             "delay_group": "Delay",
             "created_by": "Created by SP5ME",
             "config_subtitle": "Grundeinstellungen",
@@ -316,6 +329,9 @@ class MicroKISStnc(QMainWindow):
             "advanced_mode": "Erweitert",
             "basic_tab": "Einfach",
             "net_config": "Netzwerk",
+            "modem_profile_section": "Modemprofil",
+            "kiss_network_group": "KISS-Port",
+            "web_interface_group": "Weboberfläche",
             "main_tab_monitor": "Monitor",
             "main_tab_config": "Konfiguration",
             "main_tab_about": "Info",
@@ -324,6 +340,8 @@ class MicroKISStnc(QMainWindow):
             "about_build": "Build:",
             "about_kiss": "KISS-Server:",
             "about_web": "Web UI:",
+            "local_web": "Lokales Web:",
+            "remote_web": "LAN Web:",
             "web_enabled": "WeboberflĂ¤che aktiviert", "allowed_addresses": "Erlaubte Adressen", "toggle": "Hinzufugen/Entfernen",
             "devices_group": "GERĂ„TE IN/OUT", "refresh": "Aktualisieren", "signal_level": "Signalpegel:",
             "test_tones": "TesttĂ¶ne:", "both": "Beide", "ptt_group": "PTT-STEUERUNG",
@@ -363,7 +381,7 @@ class MicroKISStnc(QMainWindow):
         },
         "fr": {
             "hide_to_tray": "RĂ©duire dans la zone", "language": "Langue", "kiss_port": "Port KISS :",
-            "audio_tab": "Audio", "ptt_control_tab": "PTT Control",
+            "audio_tab": "Audio", "ptt_control_tab": "PTT",
             "delay_group": "Delai",
             "created_by": "Created by SP5ME",
             "config_subtitle": "Parametres de base",
@@ -372,6 +390,9 @@ class MicroKISStnc(QMainWindow):
             "advanced_mode": "Avance",
             "basic_tab": "Basique",
             "net_config": "Reseau",
+            "modem_profile_section": "Profil modem",
+            "kiss_network_group": "Port KISS",
+            "web_interface_group": "Interface web",
             "main_tab_monitor": "Moniteur",
             "main_tab_config": "Configuration",
             "main_tab_about": "A propos",
@@ -380,6 +401,8 @@ class MicroKISStnc(QMainWindow):
             "about_build": "Build :",
             "about_kiss": "Serveur KISS :",
             "about_web": "Web UI :",
+            "local_web": "Web local :",
+            "remote_web": "Web LAN :",
             "web_enabled": "Interface web activĂ©e", "allowed_addresses": "Adresses autorisĂ©es", "toggle": "Ajouter/Retirer",
             "devices_group": "PĂ‰RIPHĂ‰RIQUES IN/OUT", "refresh": "RafraĂ®chir", "signal_level": "Niveau du signal :",
             "test_tones": "TonalitĂ©s de test :", "both": "Les deux", "ptt_group": "CONTRĂ”LE PTT",
@@ -419,7 +442,7 @@ class MicroKISStnc(QMainWindow):
         },
         "es": {
             "hide_to_tray": "Ocultar en bandeja", "language": "Idioma", "kiss_port": "Puerto KISS:",
-            "audio_tab": "Audio", "ptt_control_tab": "PTT Control",
+            "audio_tab": "Audio", "ptt_control_tab": "PTT",
             "delay_group": "Retardo",
             "created_by": "Created by SP5ME",
             "config_subtitle": "Ajustes basicos",
@@ -428,6 +451,9 @@ class MicroKISStnc(QMainWindow):
             "advanced_mode": "Avanzado",
             "basic_tab": "Basico",
             "net_config": "Red",
+            "modem_profile_section": "Perfil del modem",
+            "kiss_network_group": "Puerto KISS",
+            "web_interface_group": "Interfaz web",
             "main_tab_monitor": "Monitor",
             "main_tab_config": "Configuracion",
             "main_tab_about": "Acerca de",
@@ -436,6 +462,8 @@ class MicroKISStnc(QMainWindow):
             "about_build": "Build:",
             "about_kiss": "Servidor KISS:",
             "about_web": "Web UI:",
+            "local_web": "Web local:",
+            "remote_web": "Web LAN:",
             "web_enabled": "Interfaz web habilitada", "allowed_addresses": "Direcciones permitidas", "toggle": "Agregar/Quitar",
             "devices_group": "DISPOSITIVOS IN/OUT", "refresh": "Actualizar", "signal_level": "Nivel de seĂ±al:",
             "test_tones": "Tonos de prueba:", "both": "Ambos", "ptt_group": "CONTROL PTT",
@@ -478,7 +506,7 @@ class MicroKISStnc(QMainWindow):
             "language": "Język",
             "kiss_port": "Port KISS:",
             "audio_tab": "Audio",
-            "ptt_control_tab": "PTT Control",
+            "ptt_control_tab": "PTT",
             "delay_group": "Opóźnienia",
             "created_by": "Created by SP5ME",
             "config_subtitle": "Ustawienia podstawowe",
@@ -487,6 +515,9 @@ class MicroKISStnc(QMainWindow):
             "advanced_mode": "Zaawansowany",
             "basic_tab": "Podstawowy",
             "net_config": "Sieć",
+            "modem_profile_section": "Profil modemu",
+            "kiss_network_group": "Port KISS",
+            "web_interface_group": "Interfejs webowy",
             "main_tab_monitor": "Monitor",
             "main_tab_config": "Konfiguracja",
             "main_tab_about": "O aplikacji",
@@ -495,6 +526,8 @@ class MicroKISStnc(QMainWindow):
             "about_build": "Wersja:",
             "about_kiss": "Serwer KISS:",
             "about_web": "Web UI:",
+            "local_web": "Web lokalny:",
+            "remote_web": "Web LAN:",
             "web_enabled": "Interfejs web włączony",
             "allowed_addresses": "Dozwolone adresy",
             "allowed_placeholder": "0.0.0.0, 192.168.1.20 lub 192.168.1.0/24",
@@ -509,6 +542,8 @@ class MicroKISStnc(QMainWindow):
             "signal_level": "Poziom sygnału:",
             "test_tones": "Tony testowe:",
             "both": "Oba",
+            "modem_profile": "Profil modemu:",
+            "frequencies": "Częstotliwości",
             "ptt_group": "KONTROLA PTT",
             "ptt_type": "Typ PTT:",
             "ptt_desc": "(RIG/CAT, DTR, RTS, VOX) - model Hamlib",
@@ -588,6 +623,7 @@ class MicroKISStnc(QMainWindow):
         self.ax25_local_callsign = str(self.config.get("ax25.local_callsign", "N0CALL-1") or "N0CALL-1").upper()
         self.ax25_l2_enabled = bool(self.config.get("ax25.l2_enabled", True))
         self.ax25_l2_sessions: Dict[str, Dict[str, int]] = {}
+        self.modem_profile = self._resolve_modem_profile(self.config.get("modem.modem_id", ModemFactory.DEFAULT_MODEM_ID))
         self.audio_monitor_in = AudioMonitor()
         self.audio_monitor_out = AudioMonitor()
         self.tone_gen = TestToneGenerator(sample_rate=44100)  # Initialize with default rate
@@ -717,6 +753,7 @@ class MicroKISStnc(QMainWindow):
             require_fcs=True,
             use_bandpass=True,
             rms_gate=0.003,
+            modem_profile=self.modem_profile,
         )
         self.rx_pipeline_lock = threading.Lock()
 
@@ -731,6 +768,7 @@ class MicroKISStnc(QMainWindow):
         
         # Setup UI
         self.init_ui()
+        self._apply_modem_profile(self.modem_profile.modem_id, persist=False)
         self._apply_app_icon()
         self.restore_geometry()
         
@@ -743,6 +781,11 @@ class MicroKISStnc(QMainWindow):
         self.meter_update_timer = QTimer()
         self.meter_update_timer.timeout.connect(self.update_meters)
         self.meter_update_timer.start(200)  # Update every 200ms
+
+        # Keep the compact config summary fresh even when state changes outside direct handlers.
+        self.monitor_summary_timer = QTimer()
+        self.monitor_summary_timer.timeout.connect(self._update_monitor_config_summary)
+        self.monitor_summary_timer.start(1000)
         
         # Start audio monitoring
         self.start_audio_monitoring()
@@ -821,6 +864,29 @@ class MicroKISStnc(QMainWindow):
         en_map = self.UI_TRANSLATIONS["en"]
         return str(lang_map.get(key, en_map.get(key, key)))
 
+    def _display_network_host(self) -> str:
+        """Return a best-effort LAN IP for display purposes, falling back to localhost."""
+        candidates = []
+        for name in (socket.gethostname(), socket.getfqdn()):
+            try:
+                _, _, host_ips = socket.gethostbyname_ex(name)
+                candidates.extend(host_ips or [])
+            except Exception:
+                pass
+            try:
+                infos = socket.getaddrinfo(name, None, socket.AF_INET, socket.SOCK_STREAM)
+                candidates.extend([info[4][0] for info in infos if info and info[4]])
+            except Exception:
+                pass
+
+        for ip in dict.fromkeys(candidates):
+            if not ip:
+                continue
+            if ip == "0.0.0.0" or ip.startswith("127."):
+                continue
+            return ip
+        return "127.0.0.1"
+
     def _set_ui_language(self, lang: str, persist: bool = True) -> None:
         selected = str(lang or "en").lower()
         if selected not in self.SUPPORTED_UI_LANGS:
@@ -844,10 +910,6 @@ class MicroKISStnc(QMainWindow):
             self._set_combo_by_data(self.combo_ui_lang, self.ui_language)
         if hasattr(self, "combo_ui_lang_monitor"):
             self._set_combo_by_data(self.combo_ui_lang_monitor, self.ui_language)
-        if hasattr(self, "label_subtitle"):
-            self.label_subtitle.setText(self._t("config_subtitle"))
-        if hasattr(self, "label_created_by"):
-            self.label_created_by.setText(self._t("created_by"))
         if hasattr(self, "main_stack") and self.main_stack.count() >= 3:
             self.main_stack.setTabText(0, self._t("main_tab_monitor"))
             self.main_stack.setTabText(1, self._t("main_tab_config"))
@@ -857,9 +919,9 @@ class MicroKISStnc(QMainWindow):
         if hasattr(self, "label_about_build"):
             self.label_about_build.setText(f"{self._t('about_build')} {self.app_build_tag}")
         if hasattr(self, "label_about_kiss"):
-            self.label_about_kiss.setText(f"{self._t('about_kiss')} 127.0.0.1:{self.kiss_port}")
+            self.label_about_kiss.setText(f"{self._t('about_kiss')} {self._display_network_host()}:{self.kiss_port}")
         if hasattr(self, "label_about_web"):
-            self.label_about_web.setText(f"{self._t('about_web')} {WEB_UI_BIND_HOST}:{WEB_UI_PORT}")
+            self.label_about_web.setText(f"{self._t('about_web')} {self._display_network_host()}:{WEB_UI_PORT}")
         if hasattr(self, "label_about_author"):
             self.label_about_author.setText(self._t("created_by"))
         if hasattr(self, "label_config_mode"):
@@ -893,8 +955,12 @@ class MicroKISStnc(QMainWindow):
             self.label_out_signal.setText(self._t("signal_level"))
         if hasattr(self, "label_test_tones"):
             self.label_test_tones.setText(self._t("test_tones"))
-        if hasattr(self, "btn_tone_both"):
-            self.btn_tone_both.setText(self._t("both"))
+        if hasattr(self, "label_modem_profile"):
+            self.label_modem_profile.setText(self._t("modem_profile"))
+        if hasattr(self, "label_modem_frequencies_title"):
+            self.label_modem_frequencies_title.setText(self._t("frequencies"))
+        self._update_modem_frequency_display()
+        self._update_tone_button_labels()
         if hasattr(self, "section_ptt"):
             self.section_ptt.setTitle(self._t("ptt_group"))
         if hasattr(self, "label_ptt_type"):
@@ -940,14 +1006,20 @@ class MicroKISStnc(QMainWindow):
         if hasattr(self, "btn_ptt_reset_defaults"):
             self.btn_ptt_reset_defaults.setText(self._t("ptt_reset_defaults"))
             self.btn_ptt_reset_defaults.setToolTip(self._t("tt_ptt_reset_defaults"))
-        if hasattr(self, "section_network"):
-            self.section_network.setTitle(self._t("net_config"))
+        if hasattr(self, "section_modem_profile"):
+            self.section_modem_profile.setTitle(self._t("modem_profile_section"))
+        if hasattr(self, "group_kiss_network"):
+            self.group_kiss_network.setTitle(self._t("kiss_network_group"))
+        if hasattr(self, "group_web_interface"):
+            self.group_web_interface.setTitle(self._t("web_interface_group"))
         if hasattr(self, "label_kiss_port_info"):
             self.label_kiss_port_info.setText(self._t("kiss_port"))
         if hasattr(self, "check_web_ui_enabled"):
             self.check_web_ui_enabled.setText(self._t("web_enabled"))
-        if hasattr(self, "label_allow_caption"):
-            self.label_allow_caption.setText(self._t("allowed_addresses"))
+        if hasattr(self, "group_allowed_addresses"):
+            self.group_allowed_addresses.setTitle(self._t("allowed_addresses"))
+        if hasattr(self, "label_web_local"):
+            self._update_web_link_texts()
         if hasattr(self, "combo_allow_ips") and self.combo_allow_ips.lineEdit() is not None:
             self.combo_allow_ips.lineEdit().setPlaceholderText(self._t("allowed_placeholder"))
         if hasattr(self, "btn_allow_ip_toggle"):
@@ -1042,6 +1114,113 @@ class MicroKISStnc(QMainWindow):
         if v in ("advanced", "adv", "pro"):
             return "advanced"
         return "basic"
+
+    def _resolve_modem_profile(self, modem_id: Optional[str] = None) -> ModemProfile:
+        """Return a known modem profile, falling back to Bell 202."""
+        return ModemFactory.get_profile(modem_id)
+
+    def _save_modem_config(self) -> None:
+        """Persist modem profile selection."""
+        self.config.set("modem.modem_id", self.modem_profile.modem_id)
+        self.config.save()
+
+    def _update_modem_profile_hint(self) -> None:
+        """Update short info text for the selected modem profile."""
+        if not hasattr(self, "label_modem_profile_hint"):
+            return
+        self.label_modem_profile_hint.setText(self.modem_profile.summary())
+
+    def _update_modem_frequency_display(self) -> None:
+        """Refresh the always-visible frequency reference for the active modem profile."""
+        if hasattr(self, "label_modem_frequencies"):
+            self.label_modem_frequencies.setText(self._modem_frequency_help_html(self.modem_profile))
+
+    def _modem_frequency_help_html(self, profile: ModemProfile) -> str:
+        """Return an HTML summary for the active modem profile frequencies."""
+        modem_id = str(getattr(profile, "modem_id", "") or "").strip().lower()
+        if modem_id == "hf_aprs_300_soundmodem":
+            return (
+                "<html><body>"
+                "<table border='1' cellspacing='0' cellpadding='5' style='border-collapse:collapse; text-align:right;'>"
+                "<tr><th>Band</th><th>Global</th></tr>"
+                "<tr><td>APRS HF (30 m, USB)</td><td>10.147 600 MHz</td></tr>"
+                "</table>"
+                "</body></html>"
+            )
+        return (
+            "<html><body>"
+            "<table border='1' cellspacing='0' cellpadding='5' style='border-collapse:collapse; text-align:right;'>"
+            "<tr><th>Band</th><th>EU</th><th>US</th></tr>"
+            "<tr><td>APRS VHF</td><td>144.800 MHz</td><td>144.390 MHz</td></tr>"
+            "<tr><td>APRS UHF</td><td>432.500 MHz</td><td>445.925 MHz</td></tr>"
+            "</table>"
+            "</body></html>"
+        )
+
+    def _update_tone_button_labels(self) -> None:
+        """Update test-tone button captions for the active modem profile."""
+        if not hasattr(self, "btn_tone_1200"):
+            return
+
+        tone_pairs = sorted(
+            (
+                (float(self.modem_profile.tx_mark_hz), "1200"),
+                (float(self.modem_profile.tx_space_hz), "2200"),
+            ),
+            key=lambda item: item[0],
+        )
+
+        low_hz, low_kind = tone_pairs[0]
+        high_hz, high_kind = tone_pairs[1]
+        self._tone_left_kind = low_kind
+        self._tone_right_kind = high_kind
+
+        self.btn_tone_1200.setText(f"{int(round(low_hz))} Hz")
+        self.btn_tone_2200.setText(f"{int(round(high_hz))} Hz")
+        self.btn_tone_both.setText(f"{self._t('both')} {int(round(low_hz))}/{int(round(high_hz))}")
+
+    def _tone_kind_for_slot(self, slot: str) -> str:
+        """Map a UI slot ('left' or 'right') to the active tone generator kind."""
+        if slot == "right":
+            return str(getattr(self, "_tone_right_kind", "2200"))
+        return str(getattr(self, "_tone_left_kind", "1200"))
+
+    def _apply_modem_profile(self, modem_id: str, persist: bool = True) -> None:
+        """Apply modem profile to RX/TX paths and refresh related UI."""
+        profile = self._resolve_modem_profile(modem_id)
+        self.modem_profile = profile
+
+        if hasattr(self, "combo_modem_profile"):
+            self.combo_modem_profile.blockSignals(True)
+            self._set_combo_by_data(self.combo_modem_profile, profile.modem_id)
+            self.combo_modem_profile.blockSignals(False)
+
+        if hasattr(self, "rx_pipeline") and self.rx_pipeline is not None:
+            try:
+                self.rx_pipeline.set_modem_profile(profile)
+            except Exception as e:
+                logger.warning(f"[MODEM] Could not update RX pipeline profile: {e}")
+
+        if hasattr(self, "tone_gen") and self.tone_gen is not None:
+            try:
+                self.tone_gen.set_tone_pair(profile.tx_mark_hz, profile.tx_space_hz)
+            except Exception as e:
+                logger.warning(f"[MODEM] Could not update tone generator profile: {e}")
+
+        if persist:
+            self._save_modem_config()
+
+        self._update_tone_button_labels()
+        self._update_modem_profile_hint()
+        self._update_modem_frequency_display()
+        self._update_monitor_config_summary()
+
+    def on_modem_profile_changed(self, _index: int) -> None:
+        """Persist modem selection from the GUI."""
+        if not hasattr(self, "combo_modem_profile"):
+            return
+        modem_id = self.combo_modem_profile.currentData() or ModemFactory.DEFAULT_MODEM_ID
+        self._apply_modem_profile(str(modem_id), persist=True)
 
     def _state_to_bool(self, state: str) -> Optional[bool]:
         """Convert Hamlib-style line state string to optional bool."""
@@ -1248,7 +1427,7 @@ class MicroKISStnc(QMainWindow):
     def _update_kiss_port_labels(self) -> None:
         """Refresh visible KISS endpoint labels after a port change."""
         if hasattr(self, "label_about_kiss"):
-            self.label_about_kiss.setText(f"{self._t('about_kiss')} 127.0.0.1:{self.kiss_port}")
+            self.label_about_kiss.setText(f"{self._t('about_kiss')} {self._display_network_host()}:{self.kiss_port}")
         if hasattr(self, "spin_kiss_port"):
             self.spin_kiss_port.blockSignals(True)
             self.spin_kiss_port.setValue(int(self.kiss_port))
@@ -1272,10 +1451,28 @@ class MicroKISStnc(QMainWindow):
 
         audio_in = self._monitor_summary_combo_text("combo_input")
         audio_out = self._monitor_summary_combo_text("combo_output")
+        modem = self.modem_profile.summary() if hasattr(self, "modem_profile") else "unknown"
         ptt = self._normalize_ptt_type(self.ptt_type or "VOX")
         kiss = str(int(self.kiss_port))
-        web = str(WEB_UI_PORT) if bool(self.web_ui_enabled) else "OFF"
-        summary = f"Audio in: {audio_in}   Audio out: {audio_out}   PTT: {ptt}   KISS: {kiss}   Web: {web}"
+        gap_section = "&nbsp;" * 12
+        gap_tab = "&nbsp;" * 3
+        audio_section = (
+            f"Audio in: {html.escape(audio_in)}{gap_tab}"
+            f"Audio out: {html.escape(audio_out)}"
+        )
+        modem_section = f"Modem: {html.escape(modem)}"
+        ptt_section = f"PTT: {html.escape(ptt)}"
+        kiss_section = f"KISS: {html.escape(kiss)}"
+        parts = [audio_section, modem_section, ptt_section, kiss_section]
+        if bool(self.web_ui_enabled):
+            local_url = f"http://127.0.0.1:{WEB_UI_PORT}"
+            remote_url = f"http://{self._display_network_host()}:{WEB_UI_PORT}"
+            parts.append(f'{html.escape(self._t("local_web"))} <a href="{local_url}">{WEB_UI_PORT}</a>')
+            parts.append(f'{html.escape(self._t("remote_web"))} <a href="{remote_url}">{WEB_UI_PORT}</a>')
+        summary = gap_section.join(parts)
+        self.label_monitor_config_summary.setTextFormat(Qt.TextFormat.RichText)
+        self.label_monitor_config_summary.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+        self.label_monitor_config_summary.setOpenExternalLinks(True)
         self.label_monitor_config_summary.setText(summary)
 
     def _on_kiss_port_changed(self, value: int) -> None:
@@ -1344,13 +1541,16 @@ class MicroKISStnc(QMainWindow):
 
         # Build sections once, then move them between layouts as needed.
         self.section_header = self.create_header_section()
+        self.section_modem_profile = self.create_modem_profile_section()
         self.section_devices = self.create_devices_section()
         self.section_ptt = self.create_ptt_section()
         self.section_network = self.create_network_section()
         self.section_monitor = self.create_monitor_section()
 
+        self.section_modem_profile.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         self.section_devices.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         self.section_ptt.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+        self.section_ptt_actions.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         self.section_network.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         self.section_monitor.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
@@ -1389,7 +1589,9 @@ class MicroKISStnc(QMainWindow):
         self.monitor_top_controls = self.create_monitor_top_controls()
         monitor_layout.addWidget(self.monitor_top_controls)
         self.label_monitor_config_summary = QLabel("")
-        self.label_monitor_config_summary.setTextFormat(Qt.TextFormat.PlainText)
+        self.label_monitor_config_summary.setTextFormat(Qt.TextFormat.RichText)
+        self.label_monitor_config_summary.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+        self.label_monitor_config_summary.setOpenExternalLinks(True)
         self.label_monitor_config_summary.setStyleSheet(
             "QLabel {"
             "background: #f7fafc;"
@@ -1420,6 +1622,7 @@ class MicroKISStnc(QMainWindow):
         audio_layout = QVBoxLayout()
         audio_layout.setContentsMargins(0, 0, 0, 0)
         audio_layout.setSpacing(12)
+        audio_layout.addWidget(self.section_modem_profile)
         audio_layout.addWidget(self.section_devices)
         audio_layout.addStretch()
         audio_scroll_content.setLayout(audio_layout)
@@ -1439,6 +1642,7 @@ class MicroKISStnc(QMainWindow):
         ptt_layout.setContentsMargins(0, 0, 0, 0)
         ptt_layout.setSpacing(12)
         ptt_layout.addWidget(self.section_ptt)
+        ptt_layout.addWidget(self.section_ptt_actions)
         ptt_layout.addStretch()
         ptt_scroll_content.setLayout(ptt_layout)
         ptt_scroll.setWidget(ptt_scroll_content)
@@ -1591,6 +1795,9 @@ class MicroKISStnc(QMainWindow):
         self._sync_tx_timing_controls()
         if hasattr(self, "combo_ppt"):
             self._update_ptt_mode_controls(self.combo_ppt.currentData() or self.ptt_type)
+        if normalized != "advanced":
+            # Basic mode keeps the web UI always on, independent of advanced settings.
+            self._set_web_ui_enabled(True, persist=True)
         self._update_monitor_config_summary()
 
     def on_config_ui_mode_changed(self, _index: int) -> None:
@@ -1631,31 +1838,6 @@ class MicroKISStnc(QMainWindow):
         close_behavior_row.addWidget(self.check_close_to_tray)
         layout.addLayout(close_behavior_row)
         
-        # Title
-        title = QLabel("MicroKISStnc")
-        title_font = QFont()
-        title_font.setPointSize(18)
-        title_font.setBold(True)
-        title.setFont(title_font)
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
-        
-        # Subtitle
-        self.label_subtitle = QLabel(self._t("config_subtitle"))
-        subtitle_font = QFont()
-        subtitle_font.setPointSize(12)
-        self.label_subtitle.setFont(subtitle_font)
-        self.label_subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.label_subtitle)
-
-        self.label_created_by = QLabel(self._t("created_by"))
-        created_by_font = QFont()
-        created_by_font.setPointSize(10)
-        self.label_created_by.setFont(created_by_font)
-        self.label_created_by.setStyleSheet("color: gray;")
-        self.label_created_by.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.label_created_by)
-
         mode_row = QHBoxLayout()
         mode_row.addStretch()
         self.label_config_mode = QLabel(self._t("config_mode"))
@@ -1701,6 +1883,58 @@ class MicroKISStnc(QMainWindow):
 
         widget.setLayout(layout)
         return widget
+
+    def create_modem_profile_section(self) -> QGroupBox:
+        """Create modem profile section shown above the audio devices frame."""
+        group = QGroupBox(self._t("modem_profile_section"))
+        layout = QHBoxLayout()
+        layout.setContentsMargins(8, 20, 8, 10)
+        layout.setSpacing(18)
+
+        left_widget = QWidget()
+        left_layout = QVBoxLayout()
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(8)
+        modem_row = QHBoxLayout()
+        self.label_modem_profile = QLabel(self._t("modem_profile"))
+        modem_row.addWidget(self.label_modem_profile)
+        self.combo_modem_profile = QComboBox()
+        for profile in ModemFactory.list_profiles():
+            self.combo_modem_profile.addItem(profile.label, profile.modem_id)
+        self._set_combo_by_data(self.combo_modem_profile, self.modem_profile.modem_id)
+        self.combo_modem_profile.currentIndexChanged.connect(self.on_modem_profile_changed)
+        modem_row.addWidget(self.combo_modem_profile)
+        modem_row.addStretch()
+        left_layout.addLayout(modem_row)
+
+        self.label_modem_profile_hint = QLabel("")
+        self.label_modem_profile_hint.setStyleSheet("color: gray;")
+        left_layout.addWidget(self.label_modem_profile_hint)
+        left_layout.addStretch()
+        left_widget.setLayout(left_layout)
+        layout.addWidget(left_widget, 1)
+
+        right_widget = QWidget()
+        right_layout = QVBoxLayout()
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(4)
+        right_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
+
+        self.label_modem_frequencies = QLabel(self._modem_frequency_help_html(self.modem_profile))
+        self.label_modem_frequencies.setTextFormat(Qt.TextFormat.RichText)
+        self.label_modem_frequencies.setWordWrap(True)
+        self.label_modem_frequencies.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
+        self.label_modem_frequencies.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.label_modem_frequencies.setMinimumWidth(340)
+        self.label_modem_frequencies.setMaximumWidth(420)
+        self.label_modem_frequencies.setStyleSheet("QLabel { color: #243540; }")
+        right_layout.addWidget(self.label_modem_frequencies)
+        right_layout.addStretch()
+        right_widget.setLayout(right_layout)
+        layout.addWidget(right_widget, 0, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
+
+        group.setLayout(layout)
+        return group
     
     def create_devices_section(self) -> QGroupBox:
         """Create devices in/out section"""
@@ -1753,7 +1987,7 @@ class MicroKISStnc(QMainWindow):
         self.combo_output.addItem(self._t("select_speaker"), None)
         self.combo_output.currentIndexChanged.connect(self.on_output_device_changed)
         layout.addWidget(self.combo_output)
-        
+
         # Sample Rate selection is kept internally for compatibility but hidden in GUI.
         self.combo_sample_rate = ClickSelectComboBox()
         self.combo_sample_rate.addItems(["44100", "48000", "96000"])
@@ -1779,7 +2013,7 @@ class MicroKISStnc(QMainWindow):
         self.btn_tone_1200 = QPushButton("1200 Hz")
         self.btn_tone_1200.setCheckable(True)
         self.btn_tone_1200.setFixedHeight(34)
-        self.btn_tone_1200.setFixedWidth(120)
+        self.btn_tone_1200.setFixedWidth(140)
         self.btn_tone_1200.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.btn_tone_1200.clicked.connect(self.toggle_tone_1200)
         tone_layout.addStretch()
@@ -1788,7 +2022,7 @@ class MicroKISStnc(QMainWindow):
         self.btn_tone_both = QPushButton(self._t("both"))
         self.btn_tone_both.setCheckable(True)
         self.btn_tone_both.setFixedHeight(34)
-        self.btn_tone_both.setFixedWidth(120)
+        self.btn_tone_both.setFixedWidth(140)
         self.btn_tone_both.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.btn_tone_both.clicked.connect(self.toggle_tone_both)
         tone_layout.addWidget(self.btn_tone_both)
@@ -1796,7 +2030,7 @@ class MicroKISStnc(QMainWindow):
         self.btn_tone_2200 = QPushButton("2200 Hz")
         self.btn_tone_2200.setCheckable(True)
         self.btn_tone_2200.setFixedHeight(34)
-        self.btn_tone_2200.setFixedWidth(120)
+        self.btn_tone_2200.setFixedWidth(140)
         self.btn_tone_2200.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.btn_tone_2200.clicked.connect(self.toggle_tone_2200)
         tone_layout.addWidget(self.btn_tone_2200)
@@ -1804,6 +2038,8 @@ class MicroKISStnc(QMainWindow):
         
         layout.addLayout(tone_layout)
         layout.addSpacing(8)
+
+        self._update_tone_button_labels()
         
         group.setLayout(layout)
         return group
@@ -2005,6 +2241,11 @@ class MicroKISStnc(QMainWindow):
         hamlib_status_layout.addStretch()
         layout.addLayout(hamlib_status_layout)
 
+        self.section_ptt_actions = QWidget()
+        ptt_actions_layout = QVBoxLayout()
+        ptt_actions_layout.setContentsMargins(0, 0, 0, 0)
+        ptt_actions_layout.setSpacing(12)
+
         self.group_tx_delay = QGroupBox(self._t("delay_group"))
         tx_timing_layout = QVBoxLayout()
         tx_timing_layout.setContentsMargins(8, 18, 8, 8)
@@ -2036,9 +2277,7 @@ class MicroKISStnc(QMainWindow):
         tx_tail_layout.addStretch()
         tx_timing_layout.addLayout(tx_tail_layout)
         self.group_tx_delay.setLayout(tx_timing_layout)
-        layout.addWidget(self.group_tx_delay)
-
-        layout.addStretch()
+        ptt_actions_layout.addWidget(self.group_tx_delay)
 
         ptt_test_layout = QHBoxLayout()
         ptt_test_layout.addStretch()
@@ -2066,7 +2305,11 @@ class MicroKISStnc(QMainWindow):
         self.btn_ptt_reset_defaults.setToolTip(self._t("tt_ptt_reset_defaults"))
         self.btn_ptt_reset_defaults.clicked.connect(self._reset_ptt_tx_defaults)
         ptt_test_layout.addWidget(self.btn_ptt_reset_defaults)
-        layout.addLayout(ptt_test_layout)
+        ptt_actions_layout.addLayout(ptt_test_layout)
+
+        ptt_actions_layout.addStretch()
+        self.section_ptt_actions.setLayout(ptt_actions_layout)
+        layout.addWidget(self.section_ptt_actions)
 
         # Default state for controls before first mode change
         self._update_ptt_mode_controls(self.ptt_type)
@@ -2074,15 +2317,21 @@ class MicroKISStnc(QMainWindow):
         group.setLayout(layout)
         return group
 
-    def create_network_section(self) -> QGroupBox:
+    def create_network_section(self) -> QWidget:
         """Create TCP/IP and Web UI section."""
-        group = QGroupBox(self._t("net_config"))
-        self.section_network = group
+        widget = QWidget()
         layout = QVBoxLayout()
-        layout.setContentsMargins(8, 20, 8, 10)
-        layout.setSpacing(8)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(12)
+
+        self.group_kiss_network = QGroupBox(self._t("kiss_network_group"))
+        kiss_layout = QVBoxLayout()
+        kiss_layout.setContentsMargins(8, 20, 8, 10)
+        kiss_layout.setSpacing(8)
 
         kiss_port_row = QHBoxLayout()
+        kiss_port_row.setContentsMargins(0, 0, 0, 0)
+        kiss_port_row.setSpacing(8)
         self.label_kiss_port_info = QLabel(self._t("kiss_port"))
         kiss_port_row.addWidget(self.label_kiss_port_info)
         self.spin_kiss_port = QSpinBox()
@@ -2091,34 +2340,18 @@ class MicroKISStnc(QMainWindow):
         self.spin_kiss_port.valueChanged.connect(self._on_kiss_port_changed)
         kiss_port_row.addWidget(self.spin_kiss_port)
         kiss_port_row.addStretch()
-        layout.addLayout(kiss_port_row)
+        kiss_layout.addLayout(kiss_port_row)
+        self.group_kiss_network.setLayout(kiss_layout)
+        layout.addWidget(self.group_kiss_network)
 
-        web_toggle_row = QHBoxLayout()
-        web_toggle_row.addStretch()
-        self.check_web_ui_enabled = QCheckBox(self._t("web_enabled"))
-        self.check_web_ui_enabled.setChecked(self.web_ui_enabled)
-        self.check_web_ui_enabled.toggled.connect(self.on_web_ui_toggle_changed)
-        web_toggle_row.addWidget(self.check_web_ui_enabled)
-        web_toggle_row.addStretch()
-        layout.addLayout(web_toggle_row)
-
-        web_url = f"http://{WEB_UI_LOCAL_HOST}:{WEB_UI_PORT}"
-        self.label_web_link = QLabel(
-            f'<span style="color:#000000; text-decoration:none;">Web: </span>'
-            f'<a href="{web_url}"><span style="color:#0b63c9;">{web_url}</span></a>'
-        )
-        self.label_web_link.setTextFormat(Qt.TextFormat.RichText)
-        self.label_web_link.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
-        self.label_web_link.setOpenExternalLinks(True)
-        self.label_web_link.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.label_web_link)
-
-        self.label_allow_caption = QLabel(self._t("allowed_addresses"))
-        self.label_allow_caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.label_allow_caption)
+        self.group_allowed_addresses = QGroupBox(self._t("allowed_addresses"))
+        allowed_layout = QVBoxLayout()
+        allowed_layout.setContentsMargins(8, 20, 8, 10)
+        allowed_layout.setSpacing(8)
 
         allow_row = QHBoxLayout()
-        allow_row.addStretch()
+        allow_row.setContentsMargins(0, 0, 0, 0)
+        allow_row.setSpacing(8)
         self.combo_allow_ips = QComboBox()
         self.combo_allow_ips.setEditable(True)
         self.combo_allow_ips.setMinimumWidth(360)
@@ -2133,21 +2366,57 @@ class MicroKISStnc(QMainWindow):
         self.btn_allow_ip_toggle.clicked.connect(self.on_allow_ip_toggle_clicked)
         allow_row.addWidget(self.btn_allow_ip_toggle)
         allow_row.addStretch()
-        layout.addLayout(allow_row)
+        allowed_layout.addLayout(allow_row)
 
         self.label_allow_ip_status = QLabel("Allowed IPs: --")
-        self.label_allow_ip_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.label_allow_ip_status)
+        self.label_allow_ip_status.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        allowed_layout.addWidget(self.label_allow_ip_status)
         self.label_allow_ip_hint = QLabel(self._t("localhost_hint"))
-        self.label_allow_ip_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.label_allow_ip_hint.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.label_allow_ip_hint.setStyleSheet("color: gray;")
-        layout.addWidget(self.label_allow_ip_hint)
+        allowed_layout.addWidget(self.label_allow_ip_hint)
+        self.group_allowed_addresses.setLayout(allowed_layout)
+
+        self.group_web_interface = QGroupBox(self._t("web_interface_group"))
+        web_layout = QVBoxLayout()
+        web_layout.setContentsMargins(8, 20, 8, 10)
+        web_layout.setSpacing(8)
+
+        web_toggle_row = QHBoxLayout()
+        web_toggle_row.setContentsMargins(0, 0, 0, 0)
+        web_toggle_row.setSpacing(8)
+        self.check_web_ui_enabled = QCheckBox(self._t("web_enabled"))
+        self.check_web_ui_enabled.setChecked(self.web_ui_enabled)
+        self.check_web_ui_enabled.toggled.connect(self.on_web_ui_toggle_changed)
+        web_toggle_row.addWidget(self.check_web_ui_enabled)
+        web_toggle_row.addStretch()
+        web_layout.addLayout(web_toggle_row)
+
+        self.label_web_local = QLabel()
+        self.label_web_local.setTextFormat(Qt.TextFormat.RichText)
+        self.label_web_local.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+        self.label_web_local.setOpenExternalLinks(True)
+        self.label_web_local.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        web_layout.addWidget(self.label_web_local)
+
+        self.label_web_remote = QLabel()
+        self.label_web_remote.setTextFormat(Qt.TextFormat.RichText)
+        self.label_web_remote.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+        self.label_web_remote.setOpenExternalLinks(True)
+        self.label_web_remote.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        web_layout.addWidget(self.label_web_remote)
+
+        self.group_web_interface.setLayout(web_layout)
+        layout.addWidget(self.group_allowed_addresses)
+        layout.addWidget(self.group_web_interface)
+
+        layout.addStretch()
+        widget.setLayout(layout)
         self._refresh_allow_ip_controls()
         self._update_web_link_visibility()
+        self._update_web_link_texts()
         self._update_monitor_config_summary()
-
-        group.setLayout(layout)
-        return group
+        return widget
     
     def _update_ptt_mode_controls(self, mode: str) -> None:
         """Enable/disable PTT control groups based on selected mode."""
@@ -2467,10 +2736,10 @@ class MicroKISStnc(QMainWindow):
         self.label_about_build = QLabel(f"{self._t('about_build')} {self.app_build_tag}")
         group_layout.addWidget(self.label_about_build)
 
-        self.label_about_kiss = QLabel(f"{self._t('about_kiss')} 127.0.0.1:{self.kiss_port}")
+        self.label_about_kiss = QLabel(f"{self._t('about_kiss')} {self._display_network_host()}:{self.kiss_port}")
         group_layout.addWidget(self.label_about_kiss)
 
-        self.label_about_web = QLabel(f"{self._t('about_web')} {WEB_UI_BIND_HOST}:{WEB_UI_PORT}")
+        self.label_about_web = QLabel(f"{self._t('about_web')} {self._display_network_host()}:{WEB_UI_PORT}")
         group_layout.addWidget(self.label_about_web)
 
         self.label_about_author = QLabel(self._t("created_by"))
@@ -2524,16 +2793,16 @@ class MicroKISStnc(QMainWindow):
                 self.btn_ptt_test.blockSignals(False)
     
     def toggle_tone_1200(self):
-        """Toggle 1200 Hz test tone"""
-        self._toggle_tone_button(self.btn_tone_1200, "1200")
+        """Toggle left-side test tone (lower frequency)."""
+        self._toggle_tone_button(self.btn_tone_1200, self._tone_kind_for_slot("left"))
     
     def toggle_tone_both(self):
         """Toggle Both test tones"""
         self._toggle_tone_button(self.btn_tone_both, "both")
     
     def toggle_tone_2200(self):
-        """Toggle 2200 Hz test tone"""
-        self._toggle_tone_button(self.btn_tone_2200, "2200")
+        """Toggle right-side test tone (higher frequency)."""
+        self._toggle_tone_button(self.btn_tone_2200, self._tone_kind_for_slot("right"))
     
     def _toggle_tone_button(self, clicked_button, tone_type: str):
         """
@@ -2854,6 +3123,8 @@ class MicroKISStnc(QMainWindow):
 
         device_sample_rate = self.actual_output_sample_rate
         logger.info(f"[TX/{tx_tag}] Using actual_output_sample_rate: {device_sample_rate} Hz")
+        modem_profile = self.modem_profile if hasattr(self, "modem_profile") else ModemFactory.get_profile(None)
+        logger.info(f"[TX/{tx_tag}] Using modem profile: {modem_profile.summary()}")
 
         frame_bits = self.hdlc_encoder.encode_frame(frame_data)
         tx_delay_ms = self._get_tx_delay_ms()
@@ -2870,7 +3141,7 @@ class MicroKISStnc(QMainWindow):
         postamble_bits = self.hdlc_encoder.generate_preamble(num_flags=postamble_flags) if postamble_flags > 0 else []
         full_bits = preamble_bits + frame_bits + postamble_bits
 
-        afsk_mod = AFSKModulator(sample_rate=device_sample_rate)
+        afsk_mod = AFSKModulator(sample_rate=device_sample_rate, profile=modem_profile)
         tx_amp = float(getattr(self, "current_tx_amplitude", 0.9))
         tx_amp = max(0.5, min(1.0, tx_amp))
         audio_data = afsk_mod.modulate_continuous(full_bits, amplitude=tx_amp)
@@ -3818,6 +4089,7 @@ class MicroKISStnc(QMainWindow):
                                 require_fcs=True,
                                 use_bandpass=True,
                                 rms_gate=0.003,
+                                modem_profile=self.modem_profile,
                             )
                             logger.info(f"[RX] RX pipeline now uses {self.actual_input_sample_rate} Hz (prevents frequency shift)")
 
@@ -4877,8 +5149,27 @@ class MicroKISStnc(QMainWindow):
 
     def _update_web_link_visibility(self) -> None:
         """Show/hide web link under the web UI toggle based on active state."""
-        if hasattr(self, "label_web_link"):
-            self.label_web_link.setVisible(bool(self.web_ui_enabled))
+        visible = bool(self.web_ui_enabled)
+        if hasattr(self, "label_web_local"):
+            self.label_web_local.setVisible(visible)
+        if hasattr(self, "label_web_remote"):
+            self.label_web_remote.setVisible(visible)
+
+    def _update_web_link_texts(self) -> None:
+        """Refresh local and remote web link labels."""
+        if not hasattr(self, "label_web_local") or not hasattr(self, "label_web_remote"):
+            return
+        local_url = f"http://127.0.0.1:{WEB_UI_PORT}"
+        remote_host = self._display_network_host()
+        remote_url = f"http://{remote_host}:{WEB_UI_PORT}"
+        self.label_web_local.setText(
+            f'<span style="color:#000000; text-decoration:none;">{self._t("local_web")} </span>'
+            f'<a href="{local_url}"><span style="color:#0b63c9;">{local_url}</span></a>'
+        )
+        self.label_web_remote.setText(
+            f'<span style="color:#000000; text-decoration:none;">{self._t("remote_web")} </span>'
+            f'<a href="{remote_url}"><span style="color:#0b63c9;">{remote_url}</span></a>'
+        )
 
     def _set_web_ui_enabled(self, enabled: bool, persist: bool = True) -> None:
         """Apply desktop web UI state, persist it, and refresh header controls."""
@@ -4906,6 +5197,7 @@ class MicroKISStnc(QMainWindow):
             self.check_web_ui_enabled.blockSignals(False)
 
         self._update_web_link_visibility()
+        self._update_monitor_config_summary()
 
     def on_web_ui_toggle_changed(self, enabled: bool) -> None:
         """Header toggle callback for enabling/disabling local web UI."""
@@ -4944,6 +5236,7 @@ class MicroKISStnc(QMainWindow):
         input_name = self.combo_input.currentText() if hasattr(self, "combo_input") else ""
         output_name = self.combo_output.currentText() if hasattr(self, "combo_output") else ""
         sample_rate = self.combo_sample_rate.currentText() if hasattr(self, "combo_sample_rate") else "44100"
+        modem_profile = self.modem_profile if hasattr(self, "modem_profile") else ModemFactory.get_profile(None)
         ptt_mode = self.combo_ppt.currentText() if hasattr(self, "combo_ppt") else self.ptt_type
 
         tone_active = ""
@@ -4973,11 +5266,14 @@ class MicroKISStnc(QMainWindow):
 
         return {
             "app_running": True,
-            "kiss_listen": f"0.0.0.0:{self.kiss_port}",
-            "web_listen": f"{WEB_UI_BIND_HOST}:{WEB_UI_PORT}",
+            "kiss_listen": f"{self._display_network_host()}:{self.kiss_port}",
+            "web_listen": f"{self._display_network_host()}:{WEB_UI_PORT}",
             "web_enabled": bool(self.web_ui_enabled),
             "sample_rate": int(sample_rate) if str(sample_rate).isdigit() else sample_rate,
             "sample_rates": ["44100", "48000", "96000"],
+            "modem_id": modem_profile.modem_id,
+            "modem_label": modem_profile.label,
+            "modems": [profile.modem_id for profile in ModemFactory.list_profiles()],
             "ptt_mode": ptt_mode,
             "ptt_type": self.ptt_type,
             "ptt_path": ptt_path,
@@ -5463,7 +5759,12 @@ def main():
         logger.error(f"[APP] Startup aborted: {exc}")
         sys.exit(1)
 
-    window.showMaximized()
+    window.hide()
+
+    def _show_main_window() -> None:
+        window.showMaximized()
+
+    QTimer.singleShot(250, _show_main_window)
     
     logger.info("Starting event loop...")
     sys.exit(app.exec())

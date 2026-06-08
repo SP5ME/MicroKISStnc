@@ -5,6 +5,7 @@ EXE:
 
 ### Krotki opis aplikacji
 MicroKISStnc public v1 to desktopowy TNC APRS/KISS. Aplikacja zamienia ramki KISS na audio AFSK (TX) oraz audio AFSK na ramki KISS (RX), dzieki czemu moze wspolpracowac z typowymi klientami APRS.
+Obsługiwane profile modemu obejmują teraz Bell 202 / AFSK1200 oraz HF APRS 300 baud AFSK zgodny z Soundmodem (1600/1800 Hz).
 
 Najwazniejsze porty:
 - KISS Server: 127.0.0.1:8001
@@ -34,6 +35,7 @@ Sekcja: Devices / Audio
 - Refresh (input): odswieza liste urzadzen input.
 - Audio output: wybor urzadzenia wyjsciowego audio (TX).
 - Refresh (output): odswieza liste urzadzen output.
+- Modem profile: wybor profilu modemu dla RX/TX.
 - Signal level (IN/OUT): wskaznik poziomu sygnalu.
 - 1200 Hz: testowy ton MARK.
 - Both: test dwoch tonow AFSK.
@@ -67,6 +69,7 @@ Tray
 
 ### Short app description
 MicroKISStnc public v1 is a desktop APRS/KISS TNC. It converts KISS frames to AFSK audio (TX) and AFSK audio to KISS frames (RX), so it can work with standard APRS software.
+Available modem profiles now include Bell 202 / AFSK1200 and HF APRS 300 baud AFSK compatible with Soundmodem (1600/1800 Hz).
 
 Main ports:
 - KISS Server: 127.0.0.1:8001
@@ -100,6 +103,7 @@ Section: Devices / Audio
 - Refresh (input): refresh input device list.
 - Audio output: select output audio device (TX).
 - Refresh (output): refresh output device list.
+- Modem profile: choose the RX/TX modem profile.
 - Signal level (IN/OUT): signal level meters.
 - 1200 Hz: MARK test tone.
 - Both: dual AFSK test tone mode.

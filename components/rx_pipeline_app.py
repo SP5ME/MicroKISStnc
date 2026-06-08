@@ -7,8 +7,13 @@ Decodes AFSK audio -> bits -> HDLC frames -> display
 import numpy as np
 import logging
 from typing import Optional, Callable
-from components.afsk_modem import AFSKDemodulator
 from components.hdlc_codec import HDLCDecoder, CRC16CCITT
+try:
+    from .afsk_modem import AFSKDemodulator
+    from .modem_factory import ModemFactory, ModemProfile
+except ImportError:  # pragma: no cover - fallback for direct script execution
+    from afsk_modem import AFSKDemodulator
+    from modem_factory import ModemFactory, ModemProfile
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +21,13 @@ logger = logging.getLogger(__name__)
 class RXPipeline:
     """RX audio decoding pipeline"""
     
-    def __init__(self, sample_rate: int = 44100, on_frame_decoded: Optional[Callable] = None):
+    def __init__(
+        self,
+        sample_rate: int = 44100,
+        on_frame_decoded: Optional[Callable] = None,
+        modem_profile: Optional[ModemProfile] = None,
+        modem_id: Optional[str] = None,
+    ):
         """
         Initialize RX pipeline
         
@@ -26,9 +37,10 @@ class RXPipeline:
         """
         self.sample_rate = sample_rate
         self.on_frame_decoded = on_frame_decoded
+        self.modem_profile = modem_profile or ModemFactory.get_profile(modem_id)
         
         # Components
-        self.afsk_demod = AFSKDemodulator(sample_rate=sample_rate)
+        self.afsk_demod = AFSKDemodulator(sample_rate=sample_rate, profile=self.modem_profile)
         self.hdlc_decoder = HDLCDecoder()
         self.crc = CRC16CCITT()
         
@@ -37,6 +49,10 @@ class RXPipeline:
         self.frame_count = 0
         
         logger.info(f"[RX-PIPELINE] Initialized @ {sample_rate}Hz")
+
+    def set_modem_profile(self, modem_profile: ModemProfile) -> None:
+        self.modem_profile = modem_profile
+        self.afsk_demod.set_profile(modem_profile)
     
     def process_audio(self, audio_samples: np.ndarray):
         """

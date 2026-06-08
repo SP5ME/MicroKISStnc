@@ -10,7 +10,7 @@ __pycache__/
 .idea/
 
 # Build artifacts
-build/
+/build/
 dist/
 release/
 *.spec
