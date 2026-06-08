@@ -36,25 +36,25 @@ class ModemFactory:
     _PROFILES: Dict[str, ModemProfile] = {
         "bell202_1200": ModemProfile(
             modem_id="bell202_1200",
-            label="1200 bd (VHF/UHF)",
+            label="AFSK1200bd (VHF/UHF)",
             modulation="afsk",
             bit_rate=1200,
             tx_mark_hz=1200,
             tx_space_hz=2200,
             rx_mark_hz=1200,
             rx_space_hz=2200,
-            description="Current APRS VHF/UHF Bell 202 modem profile.",
+            description="AFSK1200bd modem profile for APRS VHF/UHF.",
         ),
         "hf_aprs_300_soundmodem": ModemProfile(
             modem_id="hf_aprs_300_soundmodem",
-            label="300 bd (HF)",
+            label="AFSK 300bd (HF)",
             modulation="afsk",
             bit_rate=300,
             tx_mark_hz=1800,
             tx_space_hz=1600,
             rx_mark_hz=1800,
             rx_space_hz=1600,
-            description="HF APRS / packet AX.25 300 baud AFSK profile compatible with Soundmodem.",
+            description="AFSK 300bd HF profile compatible with Soundmodem.",
         ),
     }
 
