@@ -1,0 +1,215 @@
+# Builds MicroKISStnc on the three GitHub-hosted desktop platforms.
+# Branch pushes are CI builds. Version tags (v*) additionally create/update a GitHub Release.
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    # CI builds for normal development branches.
+    branches:
+      - main
+      - master
+    # Release builds. A pushed tag like v1.2.3 will build all platforms and publish assets.
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            binary-path: build/MicroKISStnc.exe
+            package-name: MicroKISStnc-windows-x64.zip
+            artifact-name: MicroKISStnc-windows-x64
+          - name: Linux
+            os: ubuntu-latest
+            binary-path: build/MicroKISStnc
+            package-name: MicroKISStnc-linux-x64.tar.gz
+            artifact-name: MicroKISStnc-linux-x64
+          - name: macOS
+            os: macos-latest
+            binary-path: build/MicroKISStnc
+            package-name: MicroKISStnc-macos-arm64.tar.gz
+            artifact-name: MicroKISStnc-macos-arm64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      # PortAudio is needed by sounddevice. The extra Qt/OpenGL/XCB packages reduce
+      # PyQt6 runtime/plugin surprises in the Linux bundle.
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev \
+            libegl1 \
+            libgl1 \
+            libportaudio2 \
+            libxcb-cursor0 \
+            portaudio19-dev
+
+      # sounddevice needs PortAudio headers/libraries while pip installs and while
+      # PyInstaller analyzes the application.
+      - name: Install macOS system dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install portaudio
+
+      - name: Install Python dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --upgrade pip
+
+          # pycaw is Windows-only. Keep requirements.txt unchanged for local Windows
+          # usage, but filter pycaw out for Linux/macOS CI builds.
+          if ($env:RUNNER_OS -eq 'Windows') {
+            pip install -r requirements.txt
+          } else {
+            Get-Content requirements.txt |
+              Where-Object { $_ -notmatch '^\s*pycaw\b' } |
+              Set-Content requirements-ci.txt
+            pip install -r requirements-ci.txt
+          }
+
+          pip install pyinstaller
+
+      - name: Build executable with PyInstaller
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $icon = Join-Path $PWD 'Ikona-MicroKISStnc.ico'
+          $outputDir = Join-Path $PWD 'build'
+          $tempRoot = Join-Path $outputDir '_pyinstaller_tmp'
+          $workDir = Join-Path $tempRoot 'work'
+          $specDir = Join-Path $tempRoot 'spec'
+          $cacheDir = Join-Path $tempRoot 'cache'
+
+          if (Test-Path $outputDir) {
+            Remove-Item -LiteralPath $outputDir -Recurse -Force
+          }
+
+          New-Item -ItemType Directory -Path $workDir -Force | Out-Null
+          New-Item -ItemType Directory -Path $specDir -Force | Out-Null
+          New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null
+
+          $env:PYINSTALLER_CONFIG_DIR = $cacheDir
+
+          # PyInstaller uses ";" as --add-data separator on Windows and ":" on POSIX.
+          # The .ico file is still bundled on all platforms so app code can load it.
+          $dataSeparator = if ($env:RUNNER_OS -eq 'Windows') { ';' } else { ':' }
+          $addData = "$icon$dataSeparator."
+
+          $pyinstallerArgs = @(
+            '--noconfirm',
+            '--clean',
+            '--onefile',
+            '--name', 'MicroKISStnc',
+            '--add-data', $addData,
+            '--distpath', $outputDir,
+            '--workpath', $workDir,
+            '--specpath', $specDir,
+            '--hidden-import', 'serial.tools.list_ports',
+            '--exclude-module', 'matplotlib',
+            'MicroKISStnc.py'
+          )
+
+          # Windows supports the existing .ico as an executable icon. macOS expects
+          # .icns for app icons, so avoid passing the Windows icon there.
+          if ($env:RUNNER_OS -eq 'Windows') {
+            if (-not (Test-Path $icon)) {
+              throw "Icon file not found: $icon"
+            }
+            $pyinstallerArgs = @('--windowed', '--icon', $icon) + $pyinstallerArgs
+          }
+
+          python -m PyInstaller @pyinstallerArgs
+
+          $binaryPath = Join-Path $PWD '${{ matrix.binary-path }}'
+          if (-not (Test-Path $binaryPath)) {
+            throw "Build finished, but binary was not created: $binaryPath"
+          }
+
+      - name: Package Windows artifact
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path release -Force | Out-Null
+          Compress-Archive -Path '${{ matrix.binary-path }}' -DestinationPath 'release/${{ matrix.package-name }}' -Force
+
+      - name: Package Linux/macOS artifact
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          chmod +x '${{ matrix.binary-path }}'
+          tar -czf 'release/${{ matrix.package-name }}' -C build MicroKISStnc
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: release/${{ matrix.package-name }}
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download packaged artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      # The GitHub CLI is preinstalled on GitHub-hosted Ubuntu runners. The tag push
+      # creates the release if it does not exist yet, then uploads/replaces assets.
+      - name: Create or update release and upload assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release create "$TAG_NAME" \
+              --title "$TAG_NAME" \
+              --notes "Automated MicroKISStnc build for $TAG_NAME"
+          fi
+
+          gh release upload "$TAG_NAME" release-assets/* --clobber
