@@ -229,8 +229,6 @@ class MicroKISStnc(QMainWindow):
             "config_subtitle": "Basic settings",
             "config_mode": "Config mode:",
             "basic_mode": "Basic",
-            "advanced_mode": "Advanced",
-            "basic_tab": "Basic",
             "net_config": "Net Config",
             "modem_profile_section": "Modem profile",
             "kiss_network_group": "KISS port",
@@ -326,8 +324,6 @@ class MicroKISStnc(QMainWindow):
             "config_subtitle": "Grundeinstellungen",
             "config_mode": "Konfigurationsmodus:",
             "basic_mode": "Einfach",
-            "advanced_mode": "Erweitert",
-            "basic_tab": "Einfach",
             "net_config": "Netzwerk",
             "modem_profile_section": "Modemprofil",
             "kiss_network_group": "KISS-Port",
@@ -387,8 +383,6 @@ class MicroKISStnc(QMainWindow):
             "config_subtitle": "Parametres de base",
             "config_mode": "Mode de configuration :",
             "basic_mode": "Basique",
-            "advanced_mode": "Avance",
-            "basic_tab": "Basique",
             "net_config": "Reseau",
             "modem_profile_section": "Profil modem",
             "kiss_network_group": "Port KISS",
@@ -448,8 +442,6 @@ class MicroKISStnc(QMainWindow):
             "config_subtitle": "Ajustes basicos",
             "config_mode": "Modo de configuracion:",
             "basic_mode": "Basico",
-            "advanced_mode": "Avanzado",
-            "basic_tab": "Basico",
             "net_config": "Red",
             "modem_profile_section": "Perfil del modem",
             "kiss_network_group": "Puerto KISS",
@@ -512,8 +504,6 @@ class MicroKISStnc(QMainWindow):
             "config_subtitle": "Ustawienia podstawowe",
             "config_mode": "Tryb konfiguracji:",
             "basic_mode": "Podstawowy",
-            "advanced_mode": "Zaawansowany",
-            "basic_tab": "Podstawowy",
             "net_config": "Sieć",
             "modem_profile_section": "Profil modemu",
             "kiss_network_group": "Port KISS",
@@ -619,7 +609,7 @@ class MicroKISStnc(QMainWindow):
         self.ui_language = str(self.config.get("application.ui_language", "en") or "en").lower()
         if self.ui_language not in self.SUPPORTED_UI_LANGS:
             self.ui_language = "en"
-        self.app_build_tag = "1.1.0"
+        self.app_build_tag = "1.1.3"
         self.ax25_local_callsign = str(self.config.get("ax25.local_callsign", "N0CALL-1") or "N0CALL-1").upper()
         self.ax25_l2_enabled = bool(self.config.get("ax25.l2_enabled", True))
         self.ax25_l2_sessions: Dict[str, Dict[str, int]] = {}
@@ -705,7 +695,11 @@ class MicroKISStnc(QMainWindow):
         self.kiss_port = max(1, min(65535, int(self.kiss_port)))
         self.close_to_tray_enabled = bool(self.config.get("application.close_to_tray_enabled", True))
         self.show_config_sections = bool(self.config.get("application.show_config_sections", True))
-        self.config_ui_mode = self._normalize_config_ui_mode(self.config.get("application.config_ui_mode", "basic"))
+        saved_config_ui_mode = str(self.config.get("application.config_ui_mode", "basic") or "basic")
+        self.config_ui_mode = self._normalize_config_ui_mode(saved_config_ui_mode)
+        if self.config_ui_mode != saved_config_ui_mode:
+            self.config.set("application.config_ui_mode", self.config_ui_mode)
+            self.config.save()
         self.web_ui_running = False
         cfg_allow_ips = self.config.get("application.allow_ips", None)
         if isinstance(cfg_allow_ips, list):
@@ -924,11 +918,6 @@ class MicroKISStnc(QMainWindow):
             self.label_about_web.setText(f"{self._t('about_web')} {self._display_network_host()}:{WEB_UI_PORT}")
         if hasattr(self, "label_about_author"):
             self.label_about_author.setText(self._t("created_by"))
-        if hasattr(self, "label_config_mode"):
-            self.label_config_mode.setText(self._t("config_mode"))
-        if hasattr(self, "combo_config_mode") and self.combo_config_mode.count() >= 2:
-            self.combo_config_mode.setItemText(0, self._t("basic_mode"))
-            self.combo_config_mode.setItemText(1, self._t("advanced_mode"))
         if hasattr(self, "config_tabs") and self.config_tabs.count() > 0:
             audio_index = self.config_tabs.indexOf(self.audio_config_page) if hasattr(self, "audio_config_page") else -1
             ptt_index = self.config_tabs.indexOf(self.ptt_config_page) if hasattr(self, "ptt_config_page") else -1
@@ -1109,10 +1098,7 @@ class MicroKISStnc(QMainWindow):
         return "VOX"
 
     def _normalize_config_ui_mode(self, value: str) -> str:
-        """Normalize config UI mode to basic or advanced."""
-        v = str(value or "basic").strip().lower()
-        if v in ("advanced", "adv", "pro"):
-            return "advanced"
+        """Normalize config UI mode to the only supported basic mode."""
         return "basic"
 
     def _resolve_modem_profile(self, modem_id: Optional[str] = None) -> ModemProfile:
@@ -1349,29 +1335,28 @@ class MicroKISStnc(QMainWindow):
         self.check_ptt_active_low.blockSignals(False)
 
     def _sync_tx_timing_controls(self) -> None:
-        """Basic mode shows fixed defaults; Advanced mode exposes saved timing values."""
-        advanced = self.config_ui_mode == "advanced"
-        delay_value = int(self.tx_delay_ms) if advanced else DEFAULT_TX_DELAY_MS
-        tail_value = int(self.tx_tail_ms) if advanced else DEFAULT_TX_TAIL_MS
+        """Basic mode exposes the saved timing values."""
+        delay_value = int(self.tx_delay_ms)
+        tail_value = int(self.tx_tail_ms)
 
         if hasattr(self, "spin_vox_delay"):
             self.spin_vox_delay.blockSignals(True)
             self.spin_vox_delay.setValue(max(0, min(5000, delay_value)))
-            self.spin_vox_delay.setEnabled(advanced)
-            self.spin_vox_delay.setVisible(advanced)
+            self.spin_vox_delay.setEnabled(True)
+            self.spin_vox_delay.setVisible(True)
             self.spin_vox_delay.blockSignals(False)
         if hasattr(self, "spin_tx_tail"):
             self.spin_tx_tail.blockSignals(True)
             self.spin_tx_tail.setValue(max(0, min(5000, tail_value)))
-            self.spin_tx_tail.setEnabled(advanced)
-            self.spin_tx_tail.setVisible(advanced)
+            self.spin_tx_tail.setEnabled(True)
+            self.spin_tx_tail.setVisible(True)
             self.spin_tx_tail.blockSignals(False)
         if hasattr(self, "label_tx_delay"):
-            self.label_tx_delay.setVisible(advanced)
+            self.label_tx_delay.setVisible(True)
         if hasattr(self, "label_tx_tail"):
-            self.label_tx_tail.setVisible(advanced)
+            self.label_tx_tail.setVisible(True)
         if hasattr(self, "group_tx_delay"):
-            self.group_tx_delay.setVisible(advanced)
+            self.group_tx_delay.setVisible(True)
 
     def _save_ptt_config(self) -> None:
         """Persist Hamlib-style PTT configuration keys and legacy compatibility key."""
@@ -1761,50 +1746,37 @@ class MicroKISStnc(QMainWindow):
         if not hasattr(self, "config_tabs"):
             return
         current = self.config_tabs.widget(index)
-        if hasattr(self, "net_config_page") and current is self.net_config_page and self.config_ui_mode != "advanced":
-            self._apply_config_ui_mode("advanced", persist=True)
+        if hasattr(self, "net_config_page") and current is self.net_config_page and self.config_ui_mode != "basic":
+            self._apply_config_ui_mode("basic", persist=True)
 
     def _apply_config_ui_mode(self, mode: str, persist: bool = True) -> None:
-        """Show or hide advanced configuration UI."""
-        normalized = self._normalize_config_ui_mode(mode)
+        """Keep configuration UI in the only supported basic mode."""
+        normalized = "basic"
         self.config_ui_mode = normalized
         if persist:
             self.config.set("application.config_ui_mode", normalized)
             self.config.save()
 
-        if hasattr(self, "combo_config_mode"):
-            self.combo_config_mode.blockSignals(True)
-            self._set_combo_by_data(self.combo_config_mode, normalized)
-            self.combo_config_mode.blockSignals(False)
-
         if hasattr(self, "net_config_page"):
-            self.net_config_page.setVisible(normalized == "advanced")
+            self.net_config_page.setVisible(True)
         if hasattr(self, "config_tabs"):
             self.config_tabs.blockSignals(True)
             net_index = self.config_tabs.indexOf(self.net_config_page) if hasattr(self, "net_config_page") else -1
-            if normalized == "advanced" and net_index < 0 and hasattr(self, "net_config_page"):
+            if net_index < 0 and hasattr(self, "net_config_page"):
                 self.config_tabs.addTab(self.net_config_page, self._t("net_config"))
-            elif normalized != "advanced" and net_index >= 0:
-                self.config_tabs.removeTab(net_index)
-            if normalized != "advanced" and hasattr(self, "net_config_page") and self.config_tabs.currentWidget() is self.net_config_page:
-                self.config_tabs.setCurrentIndex(0)
             self.config_tabs.blockSignals(False)
 
         if hasattr(self, "advanced_ptt_widget"):
-            self.advanced_ptt_widget.setVisible(normalized == "advanced")
+            self.advanced_ptt_widget.setVisible(True)
         self._sync_tx_timing_controls()
         if hasattr(self, "combo_ppt"):
             self._update_ptt_mode_controls(self.combo_ppt.currentData() or self.ptt_type)
-        if normalized != "advanced":
-            # Basic mode keeps the web UI always on, independent of advanced settings.
-            self._set_web_ui_enabled(True, persist=True)
+        self._set_web_ui_enabled(True, persist=persist)
         self._update_monitor_config_summary()
 
     def on_config_ui_mode_changed(self, _index: int) -> None:
         """Persist configuration UI mode change."""
-        if not hasattr(self, "combo_config_mode"):
-            return
-        self._apply_config_ui_mode(self.combo_config_mode.currentData() or "basic", persist=True)
+        self._apply_config_ui_mode("basic", persist=True)
 
     def resizeEvent(self, event):
         """Default resize handler."""
@@ -1837,19 +1809,6 @@ class MicroKISStnc(QMainWindow):
         self.check_close_to_tray.toggled.connect(self.on_close_behavior_toggle_changed)
         close_behavior_row.addWidget(self.check_close_to_tray)
         layout.addLayout(close_behavior_row)
-        
-        mode_row = QHBoxLayout()
-        mode_row.addStretch()
-        self.label_config_mode = QLabel(self._t("config_mode"))
-        mode_row.addWidget(self.label_config_mode)
-        self.combo_config_mode = QComboBox()
-        self.combo_config_mode.addItem(self._t("basic_mode"), "basic")
-        self.combo_config_mode.addItem(self._t("advanced_mode"), "advanced")
-        self._set_combo_by_data(self.combo_config_mode, self.config_ui_mode)
-        self.combo_config_mode.currentIndexChanged.connect(self.on_config_ui_mode_changed)
-        mode_row.addWidget(self.combo_config_mode)
-        mode_row.addStretch()
-        layout.addLayout(mode_row)
         
         widget.setLayout(layout)
         return widget
@@ -2424,7 +2383,7 @@ class MicroKISStnc(QMainWindow):
         is_rig = (mode_norm == "RIG")
         is_serial = mode_norm in ("DTR", "RTS")
         is_vox = mode_norm == "VOX"
-        is_advanced = self.config_ui_mode == "advanced"
+        is_advanced = True
 
         def set_visible(widget, visible: bool) -> None:
             if widget is not None and hasattr(widget, "setVisible"):
@@ -2599,17 +2558,11 @@ class MicroKISStnc(QMainWindow):
 
     def _on_tx_delay_changed(self, value: int) -> None:
         """Persist TX delay used for preamble flags before APRS frame payload."""
-        if self.config_ui_mode != "advanced":
-            self._sync_tx_timing_controls()
-            return
         self.tx_delay_ms = max(0, min(5000, int(value)))
         self._save_ptt_config()
 
     def _on_tx_tail_changed(self, value: int) -> None:
         """Persist TX tail after end of frame and trailing flags."""
-        if self.config_ui_mode != "advanced":
-            self._sync_tx_timing_controls()
-            return
         self.tx_tail_ms = max(0, min(5000, int(value)))
         self._save_ptt_config()
 
@@ -3175,8 +3128,6 @@ class MicroKISStnc(QMainWindow):
 
     def _get_tx_delay_ms(self) -> int:
         """Resolve TX delay in milliseconds, counted from PTT ON to audio write."""
-        if self.config_ui_mode != "advanced":
-            return DEFAULT_TX_DELAY_MS
         delay = self.config.get("ptt.tx_delay_ms", self.config.get("ptt.vox_delay_ms", self.tx_delay_ms))
         if hasattr(self, "spin_vox_delay"):
             try:
@@ -3191,8 +3142,6 @@ class MicroKISStnc(QMainWindow):
 
     def _get_tx_tail_ms(self) -> int:
         """Resolve TX tail in milliseconds, counted from last audio sample to PTT OFF."""
-        if self.config_ui_mode != "advanced":
-            return DEFAULT_TX_TAIL_MS
         tail = self.config.get("ptt.tx_tail_ms", self.tx_tail_ms)
         try:
             tail_ms = int(tail)
@@ -5114,6 +5063,9 @@ class MicroKISStnc(QMainWindow):
         self.web_server.register_handler("ptt-invert", self._web_set_ptt_invert)
         self.web_server.register_handler("civaddr", self._web_set_civaddr)
         self.web_server.register_handler("vox-delay", self._web_set_vox_delay)
+        self.web_server.register_handler("tx-tail", self._web_set_tx_tail)
+        self.web_server.register_handler("kiss-port", self._web_set_kiss_port)
+        self.web_server.register_handler("ui-language", self._web_set_ui_language)
         self.web_server.register_handler("hamlib-config", self._web_set_hamlib_config)
         self.web_server.register_handler("cat-connection", self._web_set_cat_connection)
         self.web_server.register_handler("allow-ip-toggle", self._web_toggle_allow_ip)
@@ -5266,6 +5218,7 @@ class MicroKISStnc(QMainWindow):
 
         return {
             "app_running": True,
+            "ui_language": self.ui_language,
             "kiss_listen": f"{self._display_network_host()}:{self.kiss_port}",
             "web_listen": f"{self._display_network_host()}:{WEB_UI_PORT}",
             "web_enabled": bool(self.web_ui_enabled),
@@ -5305,6 +5258,7 @@ class MicroKISStnc(QMainWindow):
             "tx_rms_pct": float(levels_out.get("rms_pct", 0.0)),
             "rx_rms_dbfs": float(levels_in.get("rms_dbfs", -96.0)),
             "tx_rms_dbfs": float(levels_out.get("rms_dbfs", -96.0)),
+            "kiss_port": int(self.kiss_port),
             "last_monitor_line": self.last_monitor_line,
             "monitor_lines": self.monitor_lines[-120:],
             "use_rts": bool(self.check_rts.isChecked()) if hasattr(self, "check_rts") else False,
@@ -5522,9 +5476,6 @@ class MicroKISStnc(QMainWindow):
     def _web_set_vox_delay(self, data: dict) -> dict:
         """Web control: set TX delay (legacy endpoint name kept for compatibility)."""
         try:
-            if self.config_ui_mode != "advanced":
-                self._sync_tx_timing_controls()
-                return {"error": "TX timing can be changed only in Advanced mode"}
             delay = int(data.get("delay_ms", 500))
             delay = max(0, min(5000, delay))
             self.spin_vox_delay.setValue(delay)
@@ -5535,6 +5486,73 @@ class MicroKISStnc(QMainWindow):
             self._sync_tx_timing_controls()
             logger.info(f"[WEB] Set TX delay: {delay} ms")
             return {"ok": True, "delay_ms": delay}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def _web_set_tx_tail(self, data: dict) -> dict:
+        """Web control: set TX tail timing to match the desktop delay card."""
+        try:
+            tail = int(data.get("tail_ms", 0))
+            tail = max(0, min(5000, tail))
+            if hasattr(self, "spin_tx_tail"):
+                self.spin_tx_tail.setValue(tail)
+            self.tx_tail_ms = tail
+            self.config.set("ptt.tx_tail_ms", tail)
+            self.config.save()
+            self._sync_tx_timing_controls()
+            logger.info(f"[WEB] Set TX tail: {tail} ms")
+            return {"ok": True, "tail_ms": tail}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def _web_set_kiss_port(self, data: dict) -> dict:
+        """Web control: set KISS TCP port using the same validation as the desktop UI."""
+        try:
+            port = int(data.get("port", self.kiss_port))
+        except (TypeError, ValueError):
+            return {"error": "invalid port"}
+
+        port = max(1, min(65535, port))
+        current = int(self.kiss_port)
+        if port == current:
+            return {"ok": True, "port": port, "unchanged": True}
+
+        if not self.check_port_available(port):
+            return {"error": f"KISS port {port} is already in use."}
+
+        was_running = bool(self.kiss_server and self.kiss_server.is_running)
+        if was_running:
+            self.kiss_server.stop()
+
+        self.kiss_port = port
+        self.config.set("kiss.port", int(self.kiss_port))
+        self.config.save()
+
+        self.kiss_server = KISSServerApp(
+            port=self.kiss_port,
+            on_frame_received=self.on_kiss_frame_received,
+            on_error=self.on_kiss_error,
+            allowed_ips=self.allowed_remote_ips,
+            max_clients=KISS_MAX_CLIENTS,
+            max_buffer_bytes=KISS_MAX_BUFFER_BYTES,
+            max_payload_bytes=KISS_MAX_PAYLOAD_BYTES,
+        )
+        if was_running:
+            self.kiss_server.start()
+
+        self._update_kiss_port_labels()
+        logger.info(f"[WEB] KISS port changed to {self.kiss_port}")
+        return {"ok": True, "port": self.kiss_port}
+
+    def _web_set_ui_language(self, data: dict) -> dict:
+        """Web control: set application UI language using the desktop language setter."""
+        try:
+            lang = str(data.get("lang", "") or "").strip().lower()
+            if lang not in self.SUPPORTED_UI_LANGS:
+                return {"error": "invalid language"}
+            self._set_ui_language(lang, persist=True)
+            logger.info(f"[WEB] UI language changed to {lang}")
+            return {"ok": True, "lang": lang}
         except Exception as e:
             return {"error": str(e)}
 

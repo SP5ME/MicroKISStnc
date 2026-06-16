@@ -37,4 +37,3 @@ Najważniejsze elementy tej wersji:
 - PTT/CAT: `RIG/CAT`, `DTR`, `RTS`, `VOX`
 - Hamlib `rigctld` oraz bezpośredni CAT po serialu
 - Monitor, tray i przełączanie języka
-

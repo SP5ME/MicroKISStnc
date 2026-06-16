@@ -1,25 +1,58 @@
-# MicroKISStnc public v1
+# MicroKISStnc v1.1.3
 
 EXE:
-[MicroKISStnc.exe](https://github.com/SP5ME/MicroKISStnc/releases/download/v1.0.0/MicroKISStnc.exe)
+[MicroKISStnc_v1.1.3.exe](https://github.com/SP5ME/MicroKISStnc/releases/download/v1.1.3/MicroKISStnc_v1.1.3.exe)
 
 ### Krotki opis aplikacji
-MicroKISStnc public v1 to desktopowy TNC APRS/KISS. Aplikacja zamienia ramki KISS na audio AFSK (TX) oraz audio AFSK na ramki KISS (RX), dzieki czemu moze wspolpracowac z typowymi klientami APRS.
-Obsługiwane profile modemu obejmują teraz Bell 202 / AFSK1200 oraz HF APRS 300 baud AFSK zgodny z Soundmodem (1600/1800 Hz).
+MicroKISStnc v1.1.3 to desktopowy TNC APRS/KISS. Aplikacja zamienia ramki KISS na audio AFSK (TX) oraz audio AFSK na ramki KISS (RX), dzieki czemu moze wspolpracowac z typowymi klientami APRS.
+Obsługiwane profile modemu obejmuja teraz Bell 202 / AFSK1200 oraz HF APRS 300 baud AFSK zgodny z Soundmodem (1600/1800 Hz).
 
 Najwazniejsze porty:
 - KISS Server: 127.0.0.1:8001
 - Web UI (opcjonalne): 0.0.0.0:8765
 
+### Co nowego w v1.1.3
+- Web UI zostal ujednolicony z interfejsem desktopowym.
+- W przegladarce dostepna jest zmiana jezyka.
+- Z poziomu Web UI mozna zmieniac port KISS.
+- Monitor zostal uproszczony i startuje domyslnie jako aktywna zakladka.
+
 ### Instrukcja uruchomienia
-1. Przejdz do folderu aplikacji.
+
+#### Windows
+1. Otworz folder aplikacji.
 2. Zainstaluj zaleznosci:
-   - `pip install -r requirements.txt`
+   - `py -3 -m pip install -r requirements.txt`
 3. Uruchom aplikacje:
-   - `python MicroKISStnc.py`
+   - `py -3 MicroKISStnc.py`
 4. W kliencie APRS ustaw polaczenie KISS na:
    - Host: 127.0.0.1
    - Port: 8001
+
+#### macOS
+1. Otworz Terminal w folderze aplikacji.
+2. Zainstaluj zaleznosci:
+   - `python3 -m pip install -r requirements.txt`
+3. Uruchom aplikacje:
+   - `python3 MicroKISStnc.py`
+4. W kliencie APRS ustaw polaczenie KISS na:
+   - Host: 127.0.0.1
+   - Port: 8001
+
+#### Linux z interfejsem graficznym
+1. Otworz terminal w folderze aplikacji.
+2. Zainstaluj zaleznosci:
+   - `python3 -m pip install -r requirements.txt`
+3. Uruchom aplikacje:
+   - `python3 MicroKISStnc.py`
+4. W kliencie APRS ustaw polaczenie KISS na:
+   - Host: 127.0.0.1
+   - Port: 8001
+
+#### Linux bez srodowiska graficznego
+- Obecna wersja aplikacji nie ma natywnego trybu konsolowego.
+- `MicroKISStnc.py` uruchamia GUI PyQt6, wiec na systemach bez pulpitu, np. Raspberry Pi OS Lite, trzeba najpierw zapewnic sesje graficzna albo uruchomic aplikacje przez tymczasowe srodowisko X/Wayland.
+- Po uruchomieniu interfejsu graficznego konfiguracja jest taka sama: `python3 MicroKISStnc.py` i port KISS `8001`.
 
 ### Opis funkcji i przyciskow
 
@@ -68,26 +101,55 @@ Tray
 ## EN
 
 ### Short app description
-MicroKISStnc public v1 is a desktop APRS/KISS TNC. It converts KISS frames to AFSK audio (TX) and AFSK audio to KISS frames (RX), so it can work with standard APRS software.
+MicroKISStnc v1.1.3 is a desktop APRS/KISS TNC. It converts KISS frames to AFSK audio (TX) and AFSK audio to KISS frames (RX), so it can work with standard APRS software.
 Available modem profiles now include Bell 202 / AFSK1200 and HF APRS 300 baud AFSK compatible with Soundmodem (1600/1800 Hz).
 
 Main ports:
 - KISS Server: 127.0.0.1:8001
 - Web UI (optional): 0.0.0.0:8765
 
-Important:
-- Disabling Web UI does not stop the KISS server.
-- Allowed addresses is always visible.
+What is new in v1.1.3:
+- Web UI is aligned with the desktop interface.
+- Browser language switching is available.
+- KISS port can be changed from Web UI.
+- Monitor view was simplified and opens by default.
 
 ### Startup instructions
-1. Open the app folder (for example `github_main_ready_clean`).
+
+#### Windows
+1. Open the app folder.
 2. Install dependencies:
-   - `pip install -r requirements.txt`
+   - `py -3 -m pip install -r requirements.txt`
 3. Run the app:
-   - `python MicroKISStnc.py`
+   - `py -3 MicroKISStnc.py`
 4. In your APRS client set KISS connection to:
    - Host: 127.0.0.1
    - Port: 8001
+
+#### macOS
+1. Open Terminal in the app folder.
+2. Install dependencies:
+   - `python3 -m pip install -r requirements.txt`
+3. Run the app:
+   - `python3 MicroKISStnc.py`
+4. In your APRS client set KISS connection to:
+   - Host: 127.0.0.1
+   - Port: 8001
+
+#### Linux with a graphical desktop
+1. Open a terminal in the app folder.
+2. Install dependencies:
+   - `python3 -m pip install -r requirements.txt`
+3. Run the app:
+   - `python3 MicroKISStnc.py`
+4. In your APRS client set KISS connection to:
+   - Host: 127.0.0.1
+   - Port: 8001
+
+#### Linux without a graphical desktop
+- The current build does not include a native console-only mode.
+- `MicroKISStnc.py` starts a PyQt6 GUI, so on systems without a desktop, such as Raspberry Pi OS Lite, you need to provide a graphical session first or run it through a temporary X/Wayland environment.
+- Once the GUI session is available, startup is the same: `python3 MicroKISStnc.py` and KISS port `8001`.
 
 ### Functions and buttons
 
