@@ -46,13 +46,6 @@ Najwazniejsze porty:
    - Host: `127.0.0.1`
    - Port: `8001`
 
-#### Linux bez srodowiska graficznego
-- Pobierz paczke `MicroKISStnc-linux-x64.tar.gz` z [Latest release with installers](https://github.com/SP5ME/MicroKISStnc/releases/latest).
-- Rozpakuj archiwum i uruchom binarke w trybie bez okna, np.:
-  - `cd /root/MicroKISStnc`
-  - `QT_QPA_PLATFORM=offscreen ./MicroKISStnc`
-- To jest obejscie awaryjne dla systemow bez normalnej sesji graficznej, np. Raspberry Pi OS Lite.
-
 ### Opis funkcji i przyciskow
 
 Sekcja: Header / Network
@@ -141,13 +134,6 @@ What is new in v1.1.3:
 5. In your APRS client set KISS connection to:
    - Host: `127.0.0.1`
    - Port: `8001`
-
-#### Linux without a graphical desktop
-- Download `MicroKISStnc-linux-x64.tar.gz` from [Latest release with installers](https://github.com/SP5ME/MicroKISStnc/releases/latest).
-- Unpack the archive and run the binary in headless mode, for example:
-  - `cd /root/MicroKISStnc`
-  - `QT_QPA_PLATFORM=offscreen ./MicroKISStnc`
-- This is an emergency workaround for systems without a normal graphical session.
 
 ### Functions and buttons
 
