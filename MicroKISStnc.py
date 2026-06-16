@@ -609,7 +609,7 @@ class MicroKISStnc(QMainWindow):
         self.ui_language = str(self.config.get("application.ui_language", "en") or "en").lower()
         if self.ui_language not in self.SUPPORTED_UI_LANGS:
             self.ui_language = "en"
-        self.app_build_tag = "1.1.0"
+        self.app_build_tag = "1.1.3"
         self.ax25_local_callsign = str(self.config.get("ax25.local_callsign", "N0CALL-1") or "N0CALL-1").upper()
         self.ax25_l2_enabled = bool(self.config.get("ax25.l2_enabled", True))
         self.ax25_l2_sessions: Dict[str, Dict[str, int]] = {}
@@ -5063,6 +5063,9 @@ class MicroKISStnc(QMainWindow):
         self.web_server.register_handler("ptt-invert", self._web_set_ptt_invert)
         self.web_server.register_handler("civaddr", self._web_set_civaddr)
         self.web_server.register_handler("vox-delay", self._web_set_vox_delay)
+        self.web_server.register_handler("tx-tail", self._web_set_tx_tail)
+        self.web_server.register_handler("kiss-port", self._web_set_kiss_port)
+        self.web_server.register_handler("ui-language", self._web_set_ui_language)
         self.web_server.register_handler("hamlib-config", self._web_set_hamlib_config)
         self.web_server.register_handler("cat-connection", self._web_set_cat_connection)
         self.web_server.register_handler("allow-ip-toggle", self._web_toggle_allow_ip)
@@ -5215,6 +5218,7 @@ class MicroKISStnc(QMainWindow):
 
         return {
             "app_running": True,
+            "ui_language": self.ui_language,
             "kiss_listen": f"{self._display_network_host()}:{self.kiss_port}",
             "web_listen": f"{self._display_network_host()}:{WEB_UI_PORT}",
             "web_enabled": bool(self.web_ui_enabled),
@@ -5254,6 +5258,7 @@ class MicroKISStnc(QMainWindow):
             "tx_rms_pct": float(levels_out.get("rms_pct", 0.0)),
             "rx_rms_dbfs": float(levels_in.get("rms_dbfs", -96.0)),
             "tx_rms_dbfs": float(levels_out.get("rms_dbfs", -96.0)),
+            "kiss_port": int(self.kiss_port),
             "last_monitor_line": self.last_monitor_line,
             "monitor_lines": self.monitor_lines[-120:],
             "use_rts": bool(self.check_rts.isChecked()) if hasattr(self, "check_rts") else False,
@@ -5481,6 +5486,73 @@ class MicroKISStnc(QMainWindow):
             self._sync_tx_timing_controls()
             logger.info(f"[WEB] Set TX delay: {delay} ms")
             return {"ok": True, "delay_ms": delay}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def _web_set_tx_tail(self, data: dict) -> dict:
+        """Web control: set TX tail timing to match the desktop delay card."""
+        try:
+            tail = int(data.get("tail_ms", 0))
+            tail = max(0, min(5000, tail))
+            if hasattr(self, "spin_tx_tail"):
+                self.spin_tx_tail.setValue(tail)
+            self.tx_tail_ms = tail
+            self.config.set("ptt.tx_tail_ms", tail)
+            self.config.save()
+            self._sync_tx_timing_controls()
+            logger.info(f"[WEB] Set TX tail: {tail} ms")
+            return {"ok": True, "tail_ms": tail}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def _web_set_kiss_port(self, data: dict) -> dict:
+        """Web control: set KISS TCP port using the same validation as the desktop UI."""
+        try:
+            port = int(data.get("port", self.kiss_port))
+        except (TypeError, ValueError):
+            return {"error": "invalid port"}
+
+        port = max(1, min(65535, port))
+        current = int(self.kiss_port)
+        if port == current:
+            return {"ok": True, "port": port, "unchanged": True}
+
+        if not self.check_port_available(port):
+            return {"error": f"KISS port {port} is already in use."}
+
+        was_running = bool(self.kiss_server and self.kiss_server.is_running)
+        if was_running:
+            self.kiss_server.stop()
+
+        self.kiss_port = port
+        self.config.set("kiss.port", int(self.kiss_port))
+        self.config.save()
+
+        self.kiss_server = KISSServerApp(
+            port=self.kiss_port,
+            on_frame_received=self.on_kiss_frame_received,
+            on_error=self.on_kiss_error,
+            allowed_ips=self.allowed_remote_ips,
+            max_clients=KISS_MAX_CLIENTS,
+            max_buffer_bytes=KISS_MAX_BUFFER_BYTES,
+            max_payload_bytes=KISS_MAX_PAYLOAD_BYTES,
+        )
+        if was_running:
+            self.kiss_server.start()
+
+        self._update_kiss_port_labels()
+        logger.info(f"[WEB] KISS port changed to {self.kiss_port}")
+        return {"ok": True, "port": self.kiss_port}
+
+    def _web_set_ui_language(self, data: dict) -> dict:
+        """Web control: set application UI language using the desktop language setter."""
+        try:
+            lang = str(data.get("lang", "") or "").strip().lower()
+            if lang not in self.SUPPORTED_UI_LANGS:
+                return {"error": "invalid language"}
+            self._set_ui_language(lang, persist=True)
+            logger.info(f"[WEB] UI language changed to {lang}")
+            return {"ok": True, "lang": lang}
         except Exception as e:
             return {"error": str(e)}
 

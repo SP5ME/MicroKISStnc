@@ -2,6 +2,17 @@
 
 Wszystkie istotne zmiany w projekcie MicroKISStnc.
 
+## [1.1.3] - 2026-06-16
+### Added
+- Ujednolicono web UI z desktopowym interfejsem i uproszczono widok monitora.
+- Dodano przełącznik języka w przeglądarce z synchronizacją z aplikacją.
+- Dodano możliwość zmiany portu KISS z poziomu web UI.
+
+### Changed
+- Ujednolicono nazewnictwo i etykiety w web UI do stylu aplikacji desktopowej.
+- Zaktualizowano tag wersji aplikacji do `1.1.3`.
+- Zaktualizowano nazwy artefaktów builda do `v1.1.3`.
+
 ## [1.1.0] - 2026-06-04
 ### Added
 - Lokalny serwer KISS TCP na porcie `8001`.
