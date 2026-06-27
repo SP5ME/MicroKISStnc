@@ -11,6 +11,7 @@ __pycache__/
 
 # Build artifacts
 /build/
+build_*/
 dist/
 release/
 *.spec

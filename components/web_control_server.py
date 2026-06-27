@@ -65,6 +65,9 @@ INDEX_HTML = """<!doctype html>
       max-width: 1260px;
       margin: 0 auto;
       padding: 18px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
     .hero {
       border: 1px solid var(--line);
@@ -831,6 +834,9 @@ INDEX_HTML = """<!doctype html>
     html, body { min-height: 100%; }
     body {
       margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
       color: var(--text);
       background:
         radial-gradient(900px 260px at 100% -10%, rgba(47, 131, 189, 0.13), transparent 55%),
@@ -839,7 +845,16 @@ INDEX_HTML = """<!doctype html>
       font-family: "Segoe UI", Tahoma, Arial, sans-serif;
     }
     a { color: var(--accent); }
-    .shell { max-width: 1360px; margin: 0 auto; padding: 16px; }
+    .shell {
+      max-width: 1360px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
     .hero {
       background: linear-gradient(180deg, #ffffff 0%, #f6f9fc 100%);
       border: 1px solid var(--line);
@@ -867,22 +882,44 @@ INDEX_HTML = """<!doctype html>
       padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line);
       background: #f8fbfe; color: var(--muted); font: 600 12px "Consolas", "Courier New", monospace; white-space: nowrap;
     }
-    .tab-row { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; border-top: 1px solid #e1e8ee; padding-top: 14px; }
+    .tab-row {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      border-top: 1px solid #e1e8ee;
+      padding-top: 14px;
+      width: 100%;
+    }
     .tab-btn {
       width: auto;
-      flex: 0 0 auto;
-      min-width: 130px;
+      flex: 1 1 0;
+      min-width: 0;
       appearance: none; border: 1px solid var(--line); border-bottom: 3px solid transparent;
       background: #f2f4f6; color: #354b59; border-radius: 10px 10px 8px 8px;
       padding: 10px 16px; font: 600 13px "Segoe UI", sans-serif; cursor: pointer;
+      text-align: center;
       transition: background 120ms ease, border-color 120ms ease, transform 90ms ease, color 120ms ease;
     }
     .tab-btn:hover { border-color: #b7c8d6; background: #e8eef3; }
     .tab-btn.active { background: var(--accent-soft); color: var(--accent-strong); border-bottom-color: var(--accent); transform: translateY(-1px); }
-    .views { margin-top: 16px; }
-    .view { display: none; gap: 16px; animation: rise 280ms ease-out; }
-    .view.active { display: grid; }
+    .views {
+      margin-top: 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .view {
+      display: none;
+      gap: 16px;
+      animation: rise 280ms ease-out;
+      min-height: 0;
+      width: 100%;
+    }
+    .view.active { display: grid; flex: 1; min-height: 0; }
     .grid-monitor, .grid-config, .grid-about { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+    .grid-monitor { grid-template-rows: minmax(0, 1fr); }
     .card {
       background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
       padding: 16px; min-width: 0;
@@ -892,7 +929,7 @@ INDEX_HTML = """<!doctype html>
       display: flex; align-items: center; justify-content: space-between; gap: 12px;
     }
     .card-title span:last-child { color: var(--muted); text-transform: none; letter-spacing: 0; font-size: 12px; }
-    .card-monitor { grid-column: span 12; }
+    .card-monitor { grid-column: span 12; display: flex; flex-direction: column; min-height: 0; height: 100%; }
     .card-audio { grid-column: span 7; }
     .card-ptt { grid-column: span 5; }
     .card-network { grid-column: span 6; }
@@ -931,10 +968,48 @@ INDEX_HTML = """<!doctype html>
     .checks input { width: auto; min-height: 0; }
     .monitor {
       border: 1px solid #b7c8d6; border-radius: 10px; background: var(--monitor-bg); color: var(--monitor-text);
-      font: 12px/1.45 "Consolas", "Courier New", monospace; padding: 12px; min-height: 250px; max-height: 380px;
+      font: 14px/1.5 "Consolas", "Courier New", monospace; padding: 12px; min-height: 0; max-height: none; flex: 1;
       white-space: pre-wrap; overflow-y: auto;
     }
+    .monitor-line { white-space: pre-wrap; }
+    .monitor-rx { color: #00ff00; }
+    .monitor-tx { color: #ff4d4d; }
+    .monitor-digi { color: #66b3ff; }
     .monitor-header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 8px; }
+    .monitor-actions { display: flex; gap: 8px; align-items: center; }
+    .monitor-freeze-btn {
+      min-width: 74px; min-height: 22px; padding: 0 10px; border: 1px solid #5a5a5a;
+      background-color: #6a6a6a; color: #d0d0d0; font-weight: 700; border-radius: 6px;
+    }
+    .monitor-freeze-btn.active {
+      background-color: #b12626; border-color: #7f1a1a; color: #fff;
+    }
+    .config-shell {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      grid-column: 1 / -1;
+      width: 100%;
+      min-width: 0;
+    }
+    .config-tab-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 0 2px;
+      width: 100%;
+    }
+    .config-tab-btn {
+      min-height: 34px; padding: 0 14px; border: 1px solid var(--line); border-bottom-color: #9ab4c3;
+      background: #eef4f8; color: var(--text); font-weight: 700; border-radius: 8px 8px 0 0;
+      flex: 1 1 140px;
+    }
+    .config-tab-btn.active {
+      background: var(--panel-strong); border-color: #6d9cbc; color: var(--accent-strong);
+      border-bottom-color: var(--panel-strong);
+    }
+    .config-panel { display: none; width: 100%; }
+    .config-panel.active { display: block; }
     .monitor-summary { display: none; }
     .summary-box { border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); padding: 12px; min-width: 0; }
     .summary-box h3 { margin: 0 0 6px; font-size: 12px; color: var(--accent-strong); text-transform: uppercase; letter-spacing: 0.08em; }
@@ -951,6 +1026,8 @@ INDEX_HTML = """<!doctype html>
     @media (max-width: 720px) {
       .shell { padding: 12px; }
       .hero { padding: 14px; }
+      .views { margin-top: 12px; }
+      .grid-monitor { grid-template-rows: auto; }
       .tab-row { gap: 6px; }
       .tab-btn { flex: 1 1 160px; }
       .inline { flex-direction: column; align-items: stretch; }
@@ -987,133 +1064,149 @@ INDEX_HTML = """<!doctype html>
             <div>
               <h2 class="card-title"><span id="monitor-title">Monitor</span><span></span></h2>
             </div>
+            <div class="monitor-actions">
+              <button type="button" class="monitor-freeze-btn" id="monitor-freeze-btn" onclick="toggleMonitorFreeze()">Freeze</button>
+            </div>
           </div>
           <div class="monitor" id="monitor">-- no data --</div>
         </article>
       </section>
 
       <section class="view grid-config" id="view-config">
-        <article class="card card-audio">
-          <h2 class="card-title"><span id="audio-card-title">Devices IN/OUT</span><span id="audio-card-subtitle">Audio inputs, outputs, and test tones</span></h2>
-          <div class="stack">
-            <div class="field">
-              <label for="input-device" id="input-device-label">Audio input</label>
-              <div class="inline">
-                <select id="input-device" onchange="setInputDevice(this.value)"></select>
-                <button type="button" class="mini-button" id="refresh-input-btn" onclick="refreshDevices()">Refresh</button>
-              </div>
-              <div class="meta" id="input-device-status">Selected: --</div>
-            </div>
-            <div class="field">
-              <label id="input-level-label">Input level</label>
-              <div class="meter"><span id="rx-meter-card"></span></div>
-            </div>
-            <div class="field">
-              <label for="output-device" id="output-device-label">Audio output</label>
-              <div class="inline">
-                <select id="output-device" onchange="setOutputDevice(this.value)"></select>
-                <button type="button" class="mini-button" id="refresh-output-btn" onclick="refreshDevices()">Refresh</button>
-              </div>
-              <div class="meta" id="output-device-status">Selected: --</div>
-            </div>
-            <div class="field">
-              <label id="output-level-label">Output level</label>
-              <div class="meter"><span id="tx-meter-card"></span></div>
-            </div>
-            <div class="field">
-              <label id="test-tones-label">Test tones</label>
-              <div class="tone-grid">
-                <button class="tone-btn" id="tone-1200" type="button" onclick="toggleTone('1200')">1200 Hz</button>
-                <button class="tone-btn" id="tone-both" type="button" onclick="toggleTone('both')">Both</button>
-                <button class="tone-btn" id="tone-2200" type="button" onclick="toggleTone('2200')">2200 Hz</button>
-              </div>
-            </div>
-          </div>
-        </article>
+        <div class="config-shell">
+          <nav class="config-tab-row" aria-label="Configuration sections">
+            <button type="button" class="config-tab-btn active" id="config-tab-audio" onclick="setConfigTab('audio')">Audio</button>
+            <button type="button" class="config-tab-btn" id="config-tab-ptt" onclick="setConfigTab('ptt')">PTT</button>
+            <button type="button" class="config-tab-btn" id="config-tab-network" onclick="setConfigTab('network')">Sieć</button>
+          </nav>
 
-        <article class="card card-ptt">
-          <h2 class="card-title"><span id="ptt-card-title">PTT control</span><span id="ptt-card-subtitle">Desktop PTT settings</span></h2>
-          <div class="stack">
-            <div class="field">
-              <label for="ptt-mode" id="ptt-type-label">PTT type</label>
-              <select id="ptt-mode" onchange="setPTTMode(this.value)"></select>
-            </div>
-            <div class="field">
-              <label for="ptt-path" id="ptt-port-label">PTT port</label>
-              <select id="ptt-path" onchange="setPTTPath(this.value)"></select>
-            </div>
-            <div class="checks">
-              <label><input id="check-ptt-invert" type="checkbox" onchange="setPTTInvert()"/> <span id="ptt-active-low-label">PTT active low</span></label>
-              <label><input id="check-rts" type="checkbox" onchange="setPTTPins()"/> <span id="rts-on-label">RTS state ON</span></label>
-              <label><input id="check-dts" type="checkbox" onchange="setPTTPins()"/> <span id="dts-on-label">DTR state ON</span></label>
-            </div>
-            <div class="field">
-              <label for="civaddr" id="civaddr-label">CI-V address</label>
-              <input id="civaddr" type="text" placeholder="0x00" onchange="setCivAddr(this.value)"/>
-            </div>
-            <div class="field">
-              <label for="tx-delay" id="tx-delay-label">TX delay</label>
-              <input id="tx-delay" type="number" min="0" max="5000" step="10" onchange="setTxDelay(this.value)"/>
-              <div class="subtle" id="tx-delay-hint">Mapped to the same timing control used by the desktop app.</div>
-            </div>
-            <div class="field">
-              <label for="tx-tail" id="tx-tail-label">TX tail</label>
-              <input id="tx-tail" type="number" min="0" max="5000" step="10" onchange="setTxTail(this.value)"/>
-            </div>
-            <div class="field" id="hamlib-group">
-              <label id="hamlib-group-label">RIG / CAT control</label>
-              <div class="split-actions">
-                <select id="cat-connection" onchange="setCatConnectionMode(this.value)">
-                  <option value="TCP" id="tcp-connection-option">TCP connection</option>
-                  <option value="SERIAL" id="serial-connection-option">Serial connection</option>
-                </select>
+          <section class="config-panel active" id="config-panel-audio">
+            <article class="card card-audio">
+              <h2 class="card-title"><span id="audio-card-title">Devices IN/OUT</span><span id="audio-card-subtitle">Audio inputs, outputs, and test tones</span></h2>
+              <div class="stack">
+                <div class="field">
+                  <label for="input-device" id="input-device-label">Audio input</label>
+                  <div class="inline">
+                    <select id="input-device" onchange="setInputDevice(this.value)"></select>
+                    <button type="button" class="mini-button" id="refresh-input-btn" onclick="refreshDevices()">Refresh</button>
+                  </div>
+                  <div class="meta" id="input-device-status">Selected: --</div>
+                </div>
+                <div class="field">
+                  <label id="input-level-label">Input level</label>
+                  <div class="meter"><span id="rx-meter-card"></span></div>
+                </div>
+                <div class="field">
+                  <label for="output-device" id="output-device-label">Audio output</label>
+                  <div class="inline">
+                    <select id="output-device" onchange="setOutputDevice(this.value)"></select>
+                    <button type="button" class="mini-button" id="refresh-output-btn" onclick="refreshDevices()">Refresh</button>
+                  </div>
+                  <div class="meta" id="output-device-status">Selected: --</div>
+                </div>
+                <div class="field">
+                  <label id="output-level-label">Output level</label>
+                  <div class="meter"><span id="tx-meter-card"></span></div>
+                </div>
+                <div class="field">
+                  <label id="test-tones-label">Test tones</label>
+                  <div class="tone-grid">
+                    <button class="tone-btn" id="tone-1200" type="button" onclick="toggleTone('1200')">1200 Hz</button>
+                    <button class="tone-btn" id="tone-both" type="button" onclick="toggleTone('both')">Both</button>
+                    <button class="tone-btn" id="tone-2200" type="button" onclick="toggleTone('2200')">2200 Hz</button>
+                  </div>
+                </div>
               </div>
-              <div class="inline" id="cat-serial-group" style="margin-top: 8px;">
-                <select id="cat-serial-port" onchange="setCatSerialPath(this.value)"></select>
-                <input id="cat-serial-baud" type="number" min="1200" max="115200" step="1200" onchange="setCatSerialBaud(this.value)"/>
-              </div>
-              <div class="inline" style="margin-top: 8px;">
-                <input id="hamlib-host" type="text" placeholder="127.0.0.1" onchange="setHamlibConfig()"/>
-                <input id="hamlib-port" type="number" min="1" max="65535" step="1" onchange="setHamlibConfig()"/>
-              </div>
-              <div class="inline" style="margin-top: 8px;">
-                <button type="button" id="hamlib-test-btn" onclick="testHamlib()">Test</button>
-              </div>
-              <div class="meta" id="hamlib-status">Hamlib: not tested</div>
-            </div>
-            <div class="field">
-              <button type="button" id="ptt-test-btn" onclick="togglePTTTest()" style="background:#2f8d4f; border-color:#1f6c39; color:#fff; font-weight:700;">PTT TEST</button>
-            </div>
-          </div>
-        </article>
+            </article>
+          </section>
 
-        <article class="card card-network">
-          <h2 class="card-title"><span id="kiss-network-title">KISS port</span><span id="kiss-network-subtitle">TCP and allowlist</span></h2>
-          <div class="stack">
-            <div class="info-list">
-              <div class="info-item"><span id="kiss-port-info-label">KISS port</span><span id="kiss-port-info">--</span></div>
-              <div class="info-item"><span id="listen-label">Listen</span><span id="kiss-listen-info">--</span></div>
-            </div>
-            <div class="field">
-              <label for="kiss-port" id="kiss-port-label">KISS port</label>
-              <div class="inline">
-                <input id="kiss-port" type="number" min="1" max="65535" step="1" onchange="setKissPort(this.value)"/>
-                <button type="button" class="mini-button" id="refresh-kiss-btn" onclick="refreshKissPort()">Refresh</button>
+          <section class="config-panel" id="config-panel-ptt">
+            <article class="card card-ptt">
+              <h2 class="card-title"><span id="ptt-card-title">PTT control</span><span id="ptt-card-subtitle">Desktop PTT settings</span></h2>
+              <div class="stack">
+                <div class="field" id="ptt-mode-row">
+                  <label for="ptt-mode" id="ptt-type-label">PTT type</label>
+                  <select id="ptt-mode" onchange="setPTTMode(this.value)"></select>
+                </div>
+                <div class="field" id="ptt-path-row">
+                  <label for="ptt-path" id="ptt-port-label">PTT port</label>
+                  <select id="ptt-path" onchange="setPTTPath(this.value)"></select>
+                </div>
+                <div class="checks" id="ptt-checks-row">
+                  <label id="ptt-invert-row"><input id="check-ptt-invert" type="checkbox" onchange="setPTTInvert()"/> <span id="ptt-active-low-label">PTT active low</span></label>
+                  <label id="rts-row"><input id="check-rts" type="checkbox" onchange="setPTTPins()"/> <span id="rts-on-label">RTS state ON</span></label>
+                  <label id="dts-row"><input id="check-dts" type="checkbox" onchange="setPTTPins()"/> <span id="dts-on-label">DTR state ON</span></label>
+                </div>
+                <div class="field" id="civaddr-row">
+                  <label for="civaddr" id="civaddr-label">CI-V address</label>
+                  <input id="civaddr" type="text" placeholder="0x00" onchange="setCivAddr(this.value)"/>
+                </div>
+                <div class="field" id="tx-delay-row">
+                  <label for="tx-delay" id="tx-delay-label">TX delay</label>
+                  <input id="tx-delay" type="number" min="0" max="5000" step="10" onchange="setTxDelay(this.value)"/>
+                  <div class="subtle" id="tx-delay-hint">Mapped to the same timing control used by the desktop app.</div>
+                </div>
+                <div class="field" id="tx-tail-row">
+                  <label for="tx-tail" id="tx-tail-label">TX tail</label>
+                  <input id="tx-tail" type="number" min="0" max="5000" step="10" onchange="setTxTail(this.value)"/>
+                </div>
+                <div class="field" id="hamlib-group">
+                  <label id="hamlib-group-label">RIG / CAT control</label>
+                  <div class="split-actions">
+                    <select id="cat-connection" onchange="setCatConnectionMode(this.value)">
+                      <option value="TCP" id="tcp-connection-option">TCP connection</option>
+                      <option value="SERIAL" id="serial-connection-option">Serial connection</option>
+                    </select>
+                  </div>
+                  <div class="inline" id="cat-serial-group" style="margin-top: 8px;">
+                    <select id="cat-serial-port" onchange="setCatSerialPath(this.value)"></select>
+                    <input id="cat-serial-baud" type="number" min="1200" max="115200" step="1200" onchange="setCatSerialBaud(this.value)"/>
+                  </div>
+                  <div class="inline" style="margin-top: 8px;">
+                    <input id="hamlib-host" type="text" placeholder="127.0.0.1" onchange="setHamlibConfig()"/>
+                    <input id="hamlib-port" type="number" min="1" max="65535" step="1" onchange="setHamlibConfig()"/>
+                  </div>
+                  <div class="inline" style="margin-top: 8px;">
+                    <button type="button" id="hamlib-test-btn" onclick="testHamlib()">Test</button>
+                  </div>
+                  <div class="meta" id="hamlib-status">Hamlib: not tested</div>
+                </div>
+                <div class="field">
+                  <button type="button" id="ptt-test-btn" onclick="togglePTTTest()" style="background:#2f8d4f; border-color:#1f6c39; color:#fff; font-weight:700;">PTT TEST</button>
+                </div>
               </div>
-            </div>
-            <div class="field">
-              <label for="allow-ip-input" id="allowed-addresses-label">Allowed addresses</label>
-              <div class="inline">
-                <input id="allow-ip-input" type="text" placeholder="0.0.0.0 or 192.168.1.20" onkeydown="if(event.key==='Enter'){toggleAllowIp();}"/>
-                <button type="button" class="mini-button" id="toggle-allow-btn" onclick="toggleAllowIp()">Toggle</button>
-              </div>
-              <select id="allow-ip-list" style="margin-top: 8px;"></select>
-              <div class="meta" id="allow-ip-status">Allowed IPs: --</div>
-              <div class="subtle">Localhost is always allowed. CIDR ranges are supported.</div>
-            </div>
-          </div>
-        </article>
+            </article>
+          </section>
 
+          <section class="config-panel" id="config-panel-network">
+            <article class="card card-network">
+              <h2 class="card-title"><span id="kiss-network-title">KISS port</span><span id="kiss-network-subtitle">TCP and allowlist</span></h2>
+              <div class="stack">
+                <div class="info-list">
+                  <div class="info-item"><span id="kiss-port-info-label">KISS port</span><span id="kiss-port-info">--</span></div>
+                  <div class="info-item"><span id="listen-label">Listen</span><span id="kiss-listen-info">--</span></div>
+                </div>
+                <div class="field">
+                  <label for="kiss-port" id="kiss-port-label">KISS port</label>
+                  <div class="inline">
+                    <input id="kiss-port" type="number" min="1" max="65535" step="1" onchange="setKissPort(this.value)"/>
+                    <button type="button" class="mini-button" id="refresh-kiss-btn" onclick="refreshKissPort()">Refresh</button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="allow-ip-input" id="allowed-addresses-label">Allowed addresses</label>
+                  <div class="inline">
+                    <input id="allow-ip-input" type="text" placeholder="0.0.0.0 or 192.168.1.20" onkeydown="if(event.key==='Enter'){toggleAllowIp();}"/>
+                    <button type="button" class="mini-button" id="toggle-allow-btn" onclick="toggleAllowIp()">Toggle</button>
+                  </div>
+                  <select id="allow-ip-list" style="margin-top: 8px;"></select>
+                  <div class="meta" id="allow-ip-status">Allowed IPs: --</div>
+                  <div class="subtle">Localhost is always allowed. CIDR ranges are supported.</div>
+                </div>
+              </div>
+            </article>
+          </section>
+        </div>
       </section>
 
       <section class="view grid-about" id="view-about">
@@ -1139,6 +1232,7 @@ INDEX_HTML = """<!doctype html>
   <script>
     var toneActive = '';
     var currentLang = 'en';
+    var currentConfigTab = 'audio';
     var LANGUAGE_OPTIONS = [
       { value: 'en', label: 'EN' },
       { value: 'de', label: 'DE' },
@@ -1154,6 +1248,9 @@ INDEX_HTML = """<!doctype html>
         monitor: 'Monitor',
         configuration: 'Configuration',
         about: 'About',
+        audio_tab: 'Audio',
+        ptt_tab: 'PTT',
+        net_config: 'Network',
         monitor_title: 'Monitor',
         audio_card_title: 'DEVICES IN/OUT',
         audio_card_subtitle: 'Audio inputs, outputs, and test tones',
@@ -1206,6 +1303,8 @@ INDEX_HTML = """<!doctype html>
         cat_serial_prefix: 'CAT serial: ',
         hamlib_tcp_ok: 'Hamlib TCP: OK',
         no_data: '-- no data --',
+        freeze: 'Freeze',
+        unfreeze: 'Unfreeze',
         about_summary: 'Desktop and web interfaces share the same backend state. The web page is styled to follow the desktop GUI language: light panels, blue accents, grouped controls, and a clear monitor surface.'
       },
       de: {
@@ -1215,6 +1314,9 @@ INDEX_HTML = """<!doctype html>
         monitor: 'Monitor',
         configuration: 'Konfiguration',
         about: 'Info',
+        audio_tab: 'Audio',
+        ptt_tab: 'PTT',
+        net_config: 'Netz',
         monitor_title: 'Monitor',
         audio_card_title: 'GERÄTE IN/OUT',
         audio_card_subtitle: 'Audio-Eingänge, -Ausgänge und Testtöne',
@@ -1267,6 +1369,8 @@ INDEX_HTML = """<!doctype html>
         cat_serial_prefix: 'CAT seriell: ',
         hamlib_tcp_ok: 'Hamlib TCP: OK',
         no_data: '-- keine Daten --',
+        freeze: 'Einfrieren',
+        unfreeze: 'Fortsetzen',
         about_summary: 'Desktop- und Web-Oberfläche nutzen denselben Backend-Status. Das Web folgt der Desktop-Optik mit hellen Karten, blauen Akzenten, Gruppen und einem klaren Monitorbereich.'
       },
       fr: {
@@ -1276,6 +1380,9 @@ INDEX_HTML = """<!doctype html>
         monitor: 'Moniteur',
         configuration: 'Configuration',
         about: 'A propos',
+        audio_tab: 'Audio',
+        ptt_tab: 'PTT',
+        net_config: 'Réseau',
         monitor_title: 'Moniteur',
         audio_card_title: 'PÉRIPHÉRIQUES IN/OUT',
         audio_card_subtitle: 'Entrées/sorties audio et tonalités de test',
@@ -1328,6 +1435,8 @@ INDEX_HTML = """<!doctype html>
         cat_serial_prefix: 'CAT série : ',
         hamlib_tcp_ok: 'Hamlib TCP : OK',
         no_data: '-- aucune donnée --',
+        freeze: 'Geler',
+        unfreeze: 'Dégeler',
         about_summary: "Les interfaces bureau et web partagent le même état backend. La page web suit le style du bureau : cartes claires, accents bleus, groupes de contrôles et zone moniteur nette."
       },
       es: {
@@ -1337,6 +1446,9 @@ INDEX_HTML = """<!doctype html>
         monitor: 'Monitor',
         configuration: 'Configuración',
         about: 'Acerca de',
+        audio_tab: 'Audio',
+        ptt_tab: 'PTT',
+        net_config: 'Red',
         monitor_title: 'Monitor',
         audio_card_title: 'DISPOSITIVOS IN/OUT',
         audio_card_subtitle: 'Entradas, salidas y tonos de prueba',
@@ -1389,6 +1501,8 @@ INDEX_HTML = """<!doctype html>
         cat_serial_prefix: 'CAT serie: ',
         hamlib_tcp_ok: 'Hamlib TCP: OK',
         no_data: '-- sin datos --',
+        freeze: 'Congelar',
+        unfreeze: 'Descongelar',
         about_summary: 'Las interfaces de escritorio y web comparten el mismo estado del backend. La web sigue el estilo del escritorio: tarjetas claras, acentos azules, controles agrupados y una zona de monitor limpia.'
       },
       pl: {
@@ -1398,6 +1512,9 @@ INDEX_HTML = """<!doctype html>
         monitor: 'Monitor',
         configuration: 'Konfiguracja',
         about: 'O aplikacji',
+        audio_tab: 'Audio',
+        ptt_tab: 'PTT',
+        net_config: 'Sieć',
         monitor_title: 'Monitor',
         audio_card_title: 'URZĄDZENIA IN/OUT',
         audio_card_subtitle: 'Wejścia, wyjścia audio i tony testowe',
@@ -1450,10 +1567,13 @@ INDEX_HTML = """<!doctype html>
         cat_serial_prefix: 'CAT szeregowy: ',
         hamlib_tcp_ok: 'Hamlib TCP: OK',
         no_data: '-- brak danych --',
+        freeze: 'Zamroź',
+        unfreeze: 'Odmróź',
         about_summary: 'Interfejsy desktop i web korzystają z tego samego stanu backendu. Web zachowuje styl aplikacji desktopowej: jasne karty, niebieskie akcenty, grupowane kontrolki i czytelny monitor.'
       }
     };
 
+    var monitorFrozen = false;
     function t(key) {
       var lang = I18N[currentLang] ? currentLang : 'en';
       return (I18N[lang] && I18N[lang][key]) || (I18N.en && I18N.en[key]) || key;
@@ -1482,7 +1602,11 @@ INDEX_HTML = """<!doctype html>
         'tab-monitor': 'monitor',
         'tab-config': 'configuration',
         'tab-about': 'about',
+        'config-tab-audio': 'audio_tab',
+        'config-tab-ptt': 'ptt_tab',
+        'config-tab-network': 'net_config',
         'monitor-title': 'monitor_title',
+        'monitor-freeze-btn': 'freeze',
         'audio-card-title': 'audio_card_title',
         'audio-card-subtitle': 'audio_card_subtitle',
         'input-device-label': 'input_device',
@@ -1536,6 +1660,18 @@ INDEX_HTML = """<!doctype html>
       if (toggleAllow) toggleAllow.textContent = t('toggle');
       if (hamlibTest) hamlibTest.textContent = t('test');
       if (pttTest) pttTest.textContent = t('ptt_test');
+      var freezeBtn = document.getElementById('monitor-freeze-btn');
+      if (freezeBtn) {
+        freezeBtn.textContent = monitorFrozen ? t('unfreeze') : t('freeze');
+        freezeBtn.classList.toggle('active', monitorFrozen);
+      }
+      var configTabButtons = ['audio', 'ptt', 'network'];
+      configTabButtons.forEach(function (tabName) {
+        var btn = document.getElementById('config-tab-' + tabName);
+        if (btn) {
+          btn.textContent = t(tabName === 'audio' ? 'audio_tab' : tabName === 'ptt' ? 'ptt_tab' : 'net_config');
+        }
+      });
 
       var tcpOpt = document.getElementById('tcp-connection-option');
       var serialOpt = document.getElementById('serial-connection-option');
@@ -1594,8 +1730,33 @@ INDEX_HTML = """<!doctype html>
       try { localStorage.setItem('mkiss_view', next); } catch (_e) {}
     }
 
+    function setConfigTab(tabName) {
+      var next = ['audio', 'ptt', 'network'].indexOf(tabName) >= 0 ? tabName : 'audio';
+      currentConfigTab = next;
+      Array.from(document.querySelectorAll('.config-panel')).forEach(function (panel) {
+        panel.classList.toggle('active', panel.id === 'config-panel-' + next);
+      });
+      Array.from(document.querySelectorAll('.config-tab-btn')).forEach(function (btn) {
+        btn.classList.toggle('active', btn.id === 'config-tab-' + next);
+      });
+      try { localStorage.setItem('mkiss_config_tab', next); } catch (_e) {}
+    }
+
+    async function toggleMonitorFreeze() {
+      monitorFrozen = !monitorFrozen;
+      applyTranslations(currentLang);
+      if (!monitorFrozen) {
+        await refresh();
+      }
+    }
+
     (function initView() {
       setView('monitor');
+      try {
+        var savedConfigTab = localStorage.getItem('mkiss_config_tab');
+        if (savedConfigTab) currentConfigTab = savedConfigTab;
+      } catch (_e) {}
+      setConfigTab(currentConfigTab);
     })();
 
     function populateSelect(selectId, options, selectedValue) {
@@ -1665,6 +1826,41 @@ INDEX_HTML = """<!doctype html>
       if (el) el.textContent = value;
     }
 
+    function setVisible(id, visible) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = visible ? '' : 'none';
+    }
+
+    function setDisabled(id, disabled) {
+      var el = document.getElementById(id);
+      if (el) el.disabled = !!disabled;
+    }
+
+    function escapeHtml(value) {
+      return String(value === undefined || value === null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function renderMonitorHtml(lines, kinds, fallback) {
+      var list = Array.isArray(lines) ? lines : [];
+      var kindList = Array.isArray(kinds) ? kinds : [];
+      var source = list.length > 0 ? list : [norm(fallback, t('no_data'))];
+
+      return source.map(function (line, index) {
+        var text = String(line || '');
+        var rawKind = String(kindList[index] || '').toUpperCase();
+        var kind = '';
+        if (rawKind === 'RX_DIGI' || rawKind === 'DIGI') kind = 'monitor-digi';
+        else if (rawKind === 'RX') kind = 'monitor-rx';
+        else if (rawKind === 'TX') kind = 'monitor-tx';
+        return '<div class="monitor-line ' + kind + '">' + escapeHtml(text) + '</div>';
+      }).join('');
+    }
+
     async function refresh() {
       var state = await apiCall('GET', '/api/state');
       if (!state) {
@@ -1704,7 +1900,12 @@ INDEX_HTML = """<!doctype html>
       updateText('output-device-status', t('selected_prefix') + outputLabel);
 
       var monitorLines = Array.isArray(state.monitor_lines) ? state.monitor_lines : [];
-      updateText('monitor', monitorLines.length > 0 ? monitorLines.join('\\n') : norm(state.last_monitor_line, t('no_data')));
+      if (!monitorFrozen) {
+        var monitorEl = document.getElementById('monitor');
+        if (monitorEl) {
+          monitorEl.innerHTML = renderMonitorHtml(monitorLines, state.monitor_line_kinds, state.last_monitor_line);
+        }
+      }
       var allowedIps = Array.isArray(state.allowed_ips) ? state.allowed_ips : [];
       updateText('allow-ip-status', t('allowed_addresses') + ': ' + (allowedIps.length ? allowedIps.join(', ') : '--'));
 
@@ -1714,17 +1915,28 @@ INDEX_HTML = """<!doctype html>
       var rigConnection = String(norm(state.rig_connection, 'TCP')).toUpperCase();
       var isCatSerial = isHamlib && rigConnection === 'SERIAL';
       var isCatTcp = isHamlib && rigConnection === 'TCP';
-      document.getElementById('check-rts').disabled = !isSerial;
-      document.getElementById('check-dts').disabled = !isSerial;
-      document.getElementById('ptt-path').disabled = !isSerial;
-      document.getElementById('check-ptt-invert').disabled = !isSerial;
-      document.getElementById('cat-connection').disabled = !isHamlib;
-      document.getElementById('cat-serial-port').disabled = !isCatSerial;
-      document.getElementById('cat-serial-baud').disabled = !isCatSerial;
-      document.getElementById('hamlib-host').disabled = !isCatTcp;
-      document.getElementById('hamlib-port').disabled = !isCatTcp;
-      document.getElementById('hamlib-group').style.opacity = isHamlib ? '1' : '0.60';
-      document.getElementById('cat-serial-group').style.opacity = isCatSerial ? '1' : '0.60';
+      setVisible('ptt-path-row', isSerial);
+      setVisible('ptt-checks-row', isSerial || isCatSerial);
+      setVisible('ptt-invert-row', isSerial);
+      setVisible('rts-row', isCatSerial);
+      setVisible('dts-row', isCatSerial);
+      setVisible('civaddr-row', isHamlib);
+      setVisible('hamlib-group', isHamlib);
+      setVisible('cat-serial-group', isCatSerial);
+      setVisible('ptt-test-btn', pttType !== 'VOX');
+      setDisabled('check-rts', !isCatSerial);
+      setDisabled('check-dts', !isCatSerial);
+      setDisabled('ptt-path', !isSerial);
+      setDisabled('check-ptt-invert', !isSerial);
+      setDisabled('cat-connection', !isHamlib);
+      setDisabled('cat-serial-port', !isCatSerial);
+      setDisabled('cat-serial-baud', !isCatSerial);
+      setDisabled('hamlib-host', !isCatTcp);
+      setDisabled('hamlib-port', !isCatTcp);
+      var hamlibGroup = document.getElementById('hamlib-group');
+      if (hamlibGroup) hamlibGroup.style.opacity = isHamlib ? '1' : '0.60';
+      var catSerialGroup = document.getElementById('cat-serial-group');
+      if (catSerialGroup) catSerialGroup.style.opacity = isCatSerial ? '1' : '0.60';
 
       var pttBtnEl = document.getElementById('ptt-test-btn');
       if (pttBtnEl) {

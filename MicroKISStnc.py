@@ -735,6 +735,9 @@ class MicroKISStnc(QMainWindow):
         self.monitor_frozen = False
         self.last_tx_source_callsign = ""
         self._audio_switch_in_progress = False
+        self._device_snapshot_cache = None
+        self._device_snapshot_cache_ts = 0.0
+        self._device_snapshot_cache_ttl_s = 1.0
         self.tx_echo_suppression_window_s = float(self.config.get("monitor.tx_echo_suppression_window_s", 2.5))
         self._recent_tx_frames = deque(maxlen=128)
         self._recent_tx_lock = threading.Lock()
@@ -1358,7 +1361,7 @@ class MicroKISStnc(QMainWindow):
         if hasattr(self, "group_tx_delay"):
             self.group_tx_delay.setVisible(True)
 
-    def _save_ptt_config(self) -> None:
+    def _save_ptt_config(self, persist: bool = True) -> None:
         """Persist Hamlib-style PTT configuration keys and legacy compatibility key."""
         self.config.set("ptt.ptt_type", self.ptt_type)
         self.config.set("ptt.path", self.ptt_port)
@@ -1380,9 +1383,10 @@ class MicroKISStnc(QMainWindow):
         # Legacy compatibility for already existing installs.
         legacy_mode = "HAMLIB" if self.ptt_type == "RIG" else self.ptt_type
         self.config.set("ppt.mode", legacy_mode)
-        self.config.save()
+        if persist:
+            self.config.save()
 
-    def _save_rig_connection_config(self) -> None:
+    def _save_rig_connection_config(self, persist: bool = True) -> None:
         """Persist CAT transport settings used when ptt_type is RIG."""
         self.config.set("ptt.rig_connection", self.rig_connection)
         self.config.set("ptt.rig_serial_path", self.cat_serial_port)
@@ -1391,7 +1395,8 @@ class MicroKISStnc(QMainWindow):
         self.config.set("ptt.rig_serial_parity", self.cat_serial_parity)
         self.config.set("ptt.rig_serial_stop_bits", self.cat_serial_stop_bits)
         self.config.set("ptt.rig_model", self.rig_model)
-        self.config.save()
+        if persist:
+            self.config.save()
 
     def _reset_hamlib_status(self) -> None:
         """Reset Hamlib status after CAT settings change."""
@@ -1676,7 +1681,7 @@ class MicroKISStnc(QMainWindow):
         self._apply_config_ui_mode(self.config_ui_mode, persist=False)
         
         # Populate device lists after UI is ready
-        self.populate_devices()
+        self.populate_devices(force_refresh=True)
         
         # Restore saved device selections from config
         self.restore_device_selection()
@@ -2507,8 +2512,9 @@ class MicroKISStnc(QMainWindow):
             if hasattr(self, "input_civaddr"):
                 self.input_civaddr.setText(default_civ)
 
-        self._save_ptt_config()
-        self._save_rig_connection_config()
+        self._save_ptt_config(persist=False)
+        self._save_rig_connection_config(persist=False)
+        self.config.save()
         self._update_rig_profile_hint()
         self._update_ptt_mode_controls(self.ptt_type)
         self._reset_hamlib_status()
@@ -2518,7 +2524,7 @@ class MicroKISStnc(QMainWindow):
         value = self.combo_ptt_port.currentData() if hasattr(self, "combo_ptt_port") else None
         self.ptt_port = str(value or "")
         if self.ptt_type in ("DTR", "RTS") and self.ptt_port:
-            self.open_ptt_port(self.ptt_port)
+            self.open_ptt_port(self.ptt_port, persist=False)
         self._save_ptt_config()
 
     def _on_ptt_share_changed(self, checked: bool) -> None:
@@ -2658,7 +2664,7 @@ class MicroKISStnc(QMainWindow):
             Qt.TextInteractionFlag.TextSelectableByMouse |
             Qt.TextInteractionFlag.TextSelectableByKeyboard
         )
-        self.text_monitor.setFont(QFont("Courier New", 9))
+        self.text_monitor.setFont(QFont("Courier New", 10))
         self.text_monitor.setStyleSheet("background-color: black; color: #00ff00;")
         self.text_monitor.setMinimumHeight(200)  # Ensure monitor has minimum height
         self.text_monitor.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -2721,7 +2727,7 @@ class MicroKISStnc(QMainWindow):
             if selected_port:
                 self.ptt_port = str(selected_port)
             if self.ptt_port:
-                self.open_ptt_port(self.ptt_port)
+                self.open_ptt_port(self.ptt_port, persist=False)
         else:
             self.close_ppt_port()
             if hasattr(self, "btn_ptt_test") and self.btn_ptt_test.isChecked():
@@ -3230,7 +3236,7 @@ class MicroKISStnc(QMainWindow):
             color = _line_color(raw_line, kind)
             html_lines.append(f'<div style="color: {color};">{safe_line}</div>')
 
-        monitor_html = '<div style="font-family: \'Courier New\'; font-size: 9pt;">' + "".join(html_lines) + "</div>"
+        monitor_html = '<div style="font-family: \'Courier New\'; font-size: 10pt;">' + "".join(html_lines) + "</div>"
         self.text_monitor.setHtml(monitor_html)
 
         # Keep viewport at top so newest entries remain immediately visible.
@@ -3269,10 +3275,10 @@ class MicroKISStnc(QMainWindow):
         self.monitor_line_kinds.clear()
         self.last_monitor_line = ""
     
-    def populate_devices(self):
+    def populate_devices(self, force_refresh: bool = False):
         """Populate device and port combo boxes"""
         try:
-            device_list_snapshot = self._query_devices_snapshot()
+            device_list_snapshot = self._query_devices_snapshot(force_refresh=force_refresh)
 
             # Get audio INPUT devices (microphones, line-in)
             input_devices = self.get_input_devices(device_list_snapshot)
@@ -3299,7 +3305,7 @@ class MicroKISStnc(QMainWindow):
             logger.info(f"[DEVICES] Found {len(output_devices)} audio OUTPUT devices")
             
             # Get serial ports for PTT
-            serial_ports = self.get_serial_ports()
+            serial_ports = self.get_serial_ports(force_refresh=force_refresh)
             self.combo_ppt.blockSignals(True)  # Prevent callback during clear/add
             self.combo_ppt.clear()
             self.combo_ppt.addItem(self._t("select_mode"), None)
@@ -3328,10 +3334,20 @@ class MicroKISStnc(QMainWindow):
         except Exception as e:
             logger.error(f"[DEVICES] Error populating devices: {e}")
 
-    def _query_devices_snapshot(self):
+    def _query_devices_snapshot(self, force_refresh: bool = False):
         """Query device list once for a single UI refresh/action cycle."""
+        now = time.monotonic()
+        if (
+            not force_refresh
+            and self._device_snapshot_cache is not None
+            and (now - self._device_snapshot_cache_ts) < self._device_snapshot_cache_ttl_s
+        ):
+            return self._device_snapshot_cache
         try:
-            return sounddevice.query_devices()
+            snapshot = sounddevice.query_devices()
+            self._device_snapshot_cache = snapshot
+            self._device_snapshot_cache_ts = now
+            return snapshot
         except Exception as e:
             logger.warning(f"[DEVICES] Error querying audio devices: {e}")
             return []
@@ -3352,6 +3368,11 @@ class MicroKISStnc(QMainWindow):
     def restore_device_selection(self):
         """Restore saved device selections from config.json"""
         try:
+            def set_index_safely(combo, index: int) -> None:
+                combo.blockSignals(True)
+                combo.setCurrentIndex(index)
+                combo.blockSignals(False)
+
             # Restore INPUT device
             saved_input = self.config.get("audio.input_device", None)
             saved_input_id = self.config.get("audio.input_device_id", None)
@@ -3359,7 +3380,7 @@ class MicroKISStnc(QMainWindow):
             if isinstance(saved_input_id, int):
                 for i in range(self.combo_input.count()):
                     if self.combo_input.itemData(i) == saved_input_id:
-                        self.combo_input.setCurrentIndex(i)
+                        set_index_safely(self.combo_input, i)
                         logger.info(f"[CONFIG] Restored INPUT device by ID: {saved_input_id}")
                         found_input = True
                         break
@@ -3369,14 +3390,14 @@ class MicroKISStnc(QMainWindow):
                     txt = self.combo_input.itemText(i)
                     raw_name = self._device_name_from_id(int(item_id)) if isinstance(item_id, int) else ""
                     if raw_name == saved_input or txt.startswith(f"{saved_input} ("):
-                        self.combo_input.setCurrentIndex(i)
+                        set_index_safely(self.combo_input, i)
                         logger.info(f"[CONFIG] Restored INPUT device by name: {saved_input}")
                         found_input = True
                         break
             
             # If no saved or not found, select first available (skip placeholder)
             if not found_input and self.combo_input.count() > 1:
-                self.combo_input.setCurrentIndex(1)
+                set_index_safely(self.combo_input, 1)
                 logger.info(f"[CONFIG] Auto-selected first INPUT device: {self.combo_input.itemData(1)}")
             
             # Restore OUTPUT device
@@ -3386,7 +3407,7 @@ class MicroKISStnc(QMainWindow):
             if isinstance(saved_output_id, int):
                 for i in range(self.combo_output.count()):
                     if self.combo_output.itemData(i) == saved_output_id:
-                        self.combo_output.setCurrentIndex(i)
+                        set_index_safely(self.combo_output, i)
                         logger.info(f"[CONFIG] Restored OUTPUT device by ID: {saved_output_id}")
                         found_output = True
                         break
@@ -3396,14 +3417,14 @@ class MicroKISStnc(QMainWindow):
                     txt = self.combo_output.itemText(i)
                     raw_name = self._device_name_from_id(int(item_id)) if isinstance(item_id, int) else ""
                     if raw_name == saved_output or txt.startswith(f"{saved_output} ("):
-                        self.combo_output.setCurrentIndex(i)
+                        set_index_safely(self.combo_output, i)
                         logger.info(f"[CONFIG] Restored OUTPUT device by name: {saved_output}")
                         found_output = True
                         break
             
             # If no saved or not found, select first available (skip placeholder)
             if not found_output and self.combo_output.count() > 1:
-                self.combo_output.setCurrentIndex(1)
+                set_index_safely(self.combo_output, 1)
                 logger.info(f"[CONFIG] Auto-selected first OUTPUT device: {self.combo_output.itemData(1)}")
             
             # Restore Sample Rate
@@ -3423,7 +3444,7 @@ class MicroKISStnc(QMainWindow):
             if saved_ppt_mode and saved_ppt_mode != "disabled":
                 for i in range(self.combo_ppt.count()):
                     if str(self.combo_ppt.itemData(i) or "").upper() == str(saved_ppt_mode).upper():
-                        self.combo_ppt.setCurrentIndex(i)
+                        set_index_safely(self.combo_ppt, i)
                         logger.info(f"[CONFIG] Restored PTT type: {saved_ppt_mode}")
                         break
 
@@ -3433,7 +3454,7 @@ class MicroKISStnc(QMainWindow):
                 if saved_ptt_port:
                     for i in range(self.combo_ptt_port.count()):
                         if self.combo_ptt_port.itemData(i) == saved_ptt_port:
-                            self.combo_ptt_port.setCurrentIndex(i)
+                            set_index_safely(self.combo_ptt_port, i)
                             logger.info(f"[CONFIG] Restored ptt_path: {saved_ptt_port}")
                             break
 
@@ -3441,19 +3462,25 @@ class MicroKISStnc(QMainWindow):
             saved_rig_conn = self._normalize_rig_connection(self.config.get("ptt.rig_connection", self.rig_connection))
             self.rig_connection = saved_rig_conn
             if hasattr(self, "combo_rig_connection"):
+                self.combo_rig_connection.blockSignals(True)
                 self._set_combo_by_data(self.combo_rig_connection, saved_rig_conn)
+                self.combo_rig_connection.blockSignals(False)
 
             saved_cat_serial_port = str(self.config.get("ptt.rig_serial_path", self.cat_serial_port) or "")
             self.cat_serial_port = saved_cat_serial_port
             if saved_cat_serial_port and hasattr(self, "combo_cat_serial_port"):
+                self.combo_cat_serial_port.blockSignals(True)
                 self._set_combo_by_data(self.combo_cat_serial_port, saved_cat_serial_port)
+                self.combo_cat_serial_port.blockSignals(False)
 
             try:
                 self.cat_serial_baud = int(self.config.get("ptt.rig_serial_baud", self.cat_serial_baud))
             except Exception:
                 pass
             if hasattr(self, "spin_cat_serial_baud"):
+                self.spin_cat_serial_baud.blockSignals(True)
                 self.spin_cat_serial_baud.setValue(int(self.cat_serial_baud))
+                self.spin_cat_serial_baud.blockSignals(False)
 
             self._update_ptt_mode_controls(self.ptt_type)
         
@@ -3720,7 +3747,7 @@ class MicroKISStnc(QMainWindow):
     def refresh_input_devices(self):
         """Refresh INPUT devices list (called by Refresh button)"""
         logger.info("[DEVICES] Refreshing INPUT devices list...")
-        self.populate_devices()
+        self.populate_devices(force_refresh=True)
         self._update_monitor_config_summary()
         logger.info("[DEVICES] INPUT devices list refreshed")
         QMessageBox.information(self, "Refresh Complete", "Input devices list has been refreshed!")
@@ -3728,7 +3755,7 @@ class MicroKISStnc(QMainWindow):
     def refresh_output_devices(self):
         """Refresh OUTPUT devices list (called by Refresh button)"""
         logger.info("[DEVICES] Refreshing OUTPUT devices list...")
-        self.populate_devices()
+        self.populate_devices(force_refresh=True)
         self._update_monitor_config_summary()
         logger.info("[DEVICES] OUTPUT devices list refreshed")
         QMessageBox.information(self, "Refresh Complete", "Output devices list has been refreshed!")
@@ -3838,13 +3865,26 @@ class MicroKISStnc(QMainWindow):
         finally:
             self._audio_switch_in_progress = False
     
-    def get_serial_ports(self) -> list:
+    def get_serial_ports(self, force_refresh: bool = False) -> list:
         """Get list of available COM ports"""
+        cache_key = "_serial_port_cache"
+        cache_ts_key = "_serial_port_cache_ts"
+        cache_ttl_s = 1.0
+        now = time.monotonic()
+        if (
+            not force_refresh
+            and getattr(self, cache_key, None) is not None
+            and (now - getattr(self, cache_ts_key, 0.0)) < cache_ttl_s
+        ):
+            return getattr(self, cache_key)
+
         ports = []
         try:
             port_list = serial.tools.list_ports.comports()
             for port in port_list:
                 ports.append(port.device)
+            setattr(self, cache_key, ports)
+            setattr(self, cache_ts_key, now)
         except Exception as e:
             logger.warning(f"[DEVICES] Error querying COM ports: {e}")
         return ports
@@ -4515,7 +4555,7 @@ class MicroKISStnc(QMainWindow):
             logger.debug(f"[AUDIO] Could not resolve name for device id={device_id}: {e}")
             return ""
     
-    def open_ptt_port(self, port_name: str):
+    def open_ptt_port(self, port_name: str, persist: bool = True):
         """Open serial port for PTT control"""
         try:
             self.close_ppt_port()  # Close existing port first
@@ -4531,7 +4571,7 @@ class MicroKISStnc(QMainWindow):
             self._apply_line_overrides()
             if self.ptt_type in ("DTR", "RTS"):
                 self.set_ppt(False)
-            self._save_ptt_config()
+            self._save_ptt_config(persist=persist)
             logger.info(f"[PTT] Opened serial port {port_name}")
         except Exception as e:
             logger.warning(f"[PTT] Could not open port {port_name}: {e}")
@@ -5261,6 +5301,7 @@ class MicroKISStnc(QMainWindow):
             "kiss_port": int(self.kiss_port),
             "last_monitor_line": self.last_monitor_line,
             "monitor_lines": self.monitor_lines[-120:],
+            "monitor_line_kinds": self.monitor_line_kinds[-120:],
             "use_rts": bool(self.check_rts.isChecked()) if hasattr(self, "check_rts") else False,
             "use_dts": bool(self.check_dts.isChecked()) if hasattr(self, "check_dts") else False,
             "vox_delay_ms": int(self._get_tx_delay_ms()),
@@ -5411,10 +5452,15 @@ class MicroKISStnc(QMainWindow):
             path = str(data.get("path", "") or "").strip()
             if not path:
                 return {"error": "empty path"}
-            if hasattr(self, "combo_ptt_port") and self._set_combo_by_text(self.combo_ptt_port, path):
+            if hasattr(self, "combo_ptt_port"):
+                self.combo_ptt_port.blockSignals(True)
+            matched = hasattr(self, "combo_ptt_port") and self._set_combo_by_text(self.combo_ptt_port, path)
+            if hasattr(self, "combo_ptt_port"):
+                self.combo_ptt_port.blockSignals(False)
+            if matched:
                 self.ptt_port = path
                 if self.ptt_type in ("DTR", "RTS"):
-                    self.open_ptt_port(path)
+                    self.open_ptt_port(path, persist=False)
                 self._save_ptt_config()
                 return {"ok": True, "path": path}
             return {"error": "ptt_path not found"}
@@ -5478,7 +5524,9 @@ class MicroKISStnc(QMainWindow):
         try:
             delay = int(data.get("delay_ms", 500))
             delay = max(0, min(5000, delay))
+            self.spin_vox_delay.blockSignals(True)
             self.spin_vox_delay.setValue(delay)
+            self.spin_vox_delay.blockSignals(False)
             self.tx_delay_ms = delay
             self.config.set("ptt.tx_delay_ms", delay)
             self.config.set("ptt.vox_delay_ms", delay)
@@ -5495,7 +5543,9 @@ class MicroKISStnc(QMainWindow):
             tail = int(data.get("tail_ms", 0))
             tail = max(0, min(5000, tail))
             if hasattr(self, "spin_tx_tail"):
+                self.spin_tx_tail.blockSignals(True)
                 self.spin_tx_tail.setValue(tail)
+                self.spin_tx_tail.blockSignals(False)
             self.tx_tail_ms = tail
             self.config.set("ptt.tx_tail_ms", tail)
             self.config.save()
@@ -5571,9 +5621,13 @@ class MicroKISStnc(QMainWindow):
             self.hamlib_host = host
             self.hamlib_port = port
             if hasattr(self, "input_hamlib_host"):
+                self.input_hamlib_host.blockSignals(True)
                 self.input_hamlib_host.setText(host)
+                self.input_hamlib_host.blockSignals(False)
             if hasattr(self, "spin_hamlib_port"):
+                self.spin_hamlib_port.blockSignals(True)
                 self.spin_hamlib_port.setValue(port)
+                self.spin_hamlib_port.blockSignals(False)
 
             self.config.set("ptt.hamlib_host", host)
             self.config.set("ptt.hamlib_port", port)
@@ -5609,13 +5663,21 @@ class MicroKISStnc(QMainWindow):
             self.cat_serial_port = path
 
             if hasattr(self, "combo_rig_connection"):
+                self.combo_rig_connection.blockSignals(True)
                 self._set_combo_by_data(self.combo_rig_connection, mode)
+                self.combo_rig_connection.blockSignals(False)
             if path and hasattr(self, "combo_cat_serial_port"):
+                self.combo_cat_serial_port.blockSignals(True)
                 self._set_combo_by_text(self.combo_cat_serial_port, path)
+                self.combo_cat_serial_port.blockSignals(False)
             if hasattr(self, "spin_cat_serial_baud"):
+                self.spin_cat_serial_baud.blockSignals(True)
                 self.spin_cat_serial_baud.setValue(baud)
+                self.spin_cat_serial_baud.blockSignals(False)
             if hasattr(self, "combo_rig_model"):
+                self.combo_rig_model.blockSignals(True)
                 self._set_combo_by_data(self.combo_rig_model, model)
+                self.combo_rig_model.blockSignals(False)
 
             self._save_rig_connection_config()
             self._update_ptt_mode_controls(self.ptt_type)
@@ -5693,7 +5755,7 @@ class MicroKISStnc(QMainWindow):
     def _web_refresh_devices(self, _data: dict) -> dict:
         """Web control: refresh input/output/PTT lists."""
         try:
-            self.populate_devices()
+            self.populate_devices(force_refresh=True)
             return {
                 "ok": True,
                 "input_count": max(0, self.combo_input.count() - 1),
